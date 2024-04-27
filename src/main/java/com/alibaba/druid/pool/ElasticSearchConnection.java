@@ -21,11 +21,26 @@ public class ElasticSearchConnection implements Connection {
     private final EqlParserDriver eqlParserDriver;
     // 关闭标识
     private boolean closeStatus = true;
+    private Properties properties;
+
+    public ElasticSearchConnection(Client client, Properties properties) {
+        this.client = client;
+        this.properties = properties;
+        this.eqlParserDriver = new EqlParserDriver();
+    }
 
     public ElasticSearchConnection(Client client) {
         this.client = client;
         this.closeStatus = false;
         this.eqlParserDriver = new EqlParserDriver();
+    }
+
+    public Properties getProperties() {
+        return properties;
+    }
+
+    public void setProperties(Properties properties) {
+        this.properties = properties;
     }
 
     public Client getClient() {

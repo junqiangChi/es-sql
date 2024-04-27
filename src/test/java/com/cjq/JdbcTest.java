@@ -1,12 +1,14 @@
 package com.cjq;
 
 import com.alibaba.druid.pool.DruidDataSource;
+import com.alibaba.druid.pool.DruidPooledConnection;
 import com.alibaba.druid.pool.ElasticSearchDruidDataSourceFactory;
+import com.cjq.common.EsJdbcConfig;
 import org.junit.Test;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
+import java.sql.*;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 
 /**
@@ -19,22 +21,35 @@ public class JdbcTest {
     public void test() {
         try {
             Properties properties = new Properties();
-            properties.put("url", "jdbc:elasticsearch://192.168.2.163:9300");
-            properties.setProperty("username", "elastic");
-            properties.setProperty("password", "123456");
-
-
-            String url = "jdbc:elasticsearch://192.168.10.100:9300";
-            String usename = "elastic";
-            String password = "123456";
+            properties.put(EsJdbcConfig.ES_URL, "jdbc:elasticsearch://node001:9200");
+//            properties.put(EsJdbcConfig.USERNAME, "elastic");
+//            properties.put(EsJdbcConfig.PASSWORD, "123456");
             DruidDataSource dds = (DruidDataSource) ElasticSearchDruidDataSourceFactory.createDataSource(properties);
 
-            Class.forName("");
-            Connection connection = DriverManager.getConnection(url, usename, password);
-
-            String sql = "SELECT * from ori_data_http limit 10";
+            DruidPooledConnection connection = dds.getConnection();
+            String sql = "SELECT DATA_ID from ori_data_http limit 10";
             PreparedStatement ps = connection.prepareStatement(sql);
-            ps.executeQuery();
+            ResultSet rs = ps.executeQuery();
+            ResultSetMetaData metaData = rs.getMetaData();
+            int columnCount = metaData.getColumnCount();
+            Map<String, String> columnMap = new HashMap<>();
+            for (int i = 1; i <= columnCount; i++) {
+                columnMap.put(metaData.getColumnName(i), metaData.getColumnTypeName(i));
+            }
+            int count = 0;
+            while (rs.next()) {
+                HashMap<String, Object> resultMap = new HashMap<>();
+                columnMap.forEach((key, value) -> {
+                    try {
+                        resultMap.put(key, rs.getObject(key));
+                    } catch (SQLException e) {
+                        e.printStackTrace();
+                    }
+                });
+                System.out.println(resultMap);
+                count++;
+            }
+            System.out.println(count);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

@@ -433,8 +433,8 @@ MATCH: 'MATCH'; // select * from t where f1 MATCH 'xxx'
 MATCH_PHRASE: 'MATCH_PHRASE'; // select * from t where f1 MATCH_PHRASE 'xxx'
 TERM: 'TERM'; //select * from t where f1 TERM 'xxx'
 MULTI_MATCH: 'MULTI_MATCH'; // select * from t where 'xxx' MULTI_MATCH(f1,f2,f3)
-FUZZY: 'FUZZY'; // select * from t where f1 FUZZY('xxx','auto')
-MISSING_QUERY: 'MISSING_QUERY'; // select * from t where MISSING_QUERY(f1)
+//FUZZY: 'FUZZY'; // select * from t where f1 FUZZY('xxx','auto')
+//MISSING_QUERY: 'MISSING_QUERY'; // select * from t where MISSING_QUERY(f1)
 
 //--SPARK-KEYWORD-LIST-END
 //============================

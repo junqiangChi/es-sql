@@ -31,7 +31,9 @@ import com.alibaba.druid.util.StringUtils;
 import com.alibaba.druid.util.Utils;
 import com.alibaba.druid.wall.WallFilter;
 import com.alibaba.druid.wall.WallProviderStatValue;
+import com.cjq.common.EsJdbcConfig;
 import com.cjq.domain.Client;
+import com.cjq.exception.JdbcUrlException;
 
 import javax.management.JMException;
 import javax.management.MBeanServer;
@@ -59,6 +61,7 @@ import static com.alibaba.druid.util.Utils.getBoolean;
 public class ElasticSearchDruidDataSource extends DruidDataSource {
 
     private final static Log LOG = LogFactory.getLog(ElasticSearchDruidDataSource.class);
+    private static final String CONNECT_STRING_PREFIX = "jdbc:elasticsearch:";
     private static final long serialVersionUID = 1L;
     // stats
     private volatile long recycleErrorCount = 0L;
@@ -119,18 +122,20 @@ public class ElasticSearchDruidDataSource extends DruidDataSource {
     private static List<Filter> autoFilters = null;
     private boolean loadSpifilterSkip = false;
 
+    private Client client;
     // elasticsearch client
-    private final Client client;
+    private Properties properties;
 
-    public ElasticSearchDruidDataSource(Client client) {
-        this(false, client);
+    public ElasticSearchDruidDataSource() {
+    }
+
+
+    public ElasticSearchDruidDataSource(Properties properties) {
+        this.properties = properties;
     }
 
     public ElasticSearchDruidDataSource(boolean fairLock, Client client) {
         super(fairLock);
-
-        this.client = client;
-
         configFromPropety(System.getProperties());
     }
 
@@ -738,7 +743,7 @@ public class ElasticSearchDruidDataSource extends DruidDataSource {
         if (inited) {
             return;
         }
-
+        setUrl(properties.getProperty(EsJdbcConfig.ES_URL));
         // bug fixed for dead lock, for issue #2980
         DruidDriver.getInstance();
 
@@ -906,10 +911,10 @@ public class ElasticSearchDruidDataSource extends DruidDataSource {
             throw e;
         } catch (InterruptedException e) {
             throw new SQLException(e.getMessage(), e);
-        } catch (RuntimeException e){
+        } catch (RuntimeException e) {
             LOG.error("{dataSource-" + this.getID() + "} init error", e);
             throw e;
-        } catch (Error e){
+        } catch (Error e) {
             LOG.error("{dataSource-" + this.getID() + "} init error", e);
             throw e;
 
@@ -932,9 +937,22 @@ public class ElasticSearchDruidDataSource extends DruidDataSource {
         }
     }
 
+    public boolean acceptUrl(String url) {
+        return url.startsWith(CONNECT_STRING_PREFIX);
+    }
+
+    @Override
+    public void setUrl(String jdbcUrl) {
+        this.jdbcUrl = jdbcUrl;
+    }
+
     @Override
     public PhysicalConnectionInfo createPhysicalConnection() throws SQLException {
         String url = this.getUrl();
+        if (!acceptUrl(url)) {
+            throw new JdbcUrlException("url format is wrong");
+        }
+        createClient(url);
         Properties connectProperties = getConnectProperties();
 
         Connection conn = null;
@@ -987,10 +1005,16 @@ public class ElasticSearchDruidDataSource extends DruidDataSource {
 
     @Override
     public Connection createPhysicalConnection(String url, Properties info) throws SQLException {
-        Connection conn = new ElasticSearchConnection(client);
+        createClient(url);
+        Connection conn = new ElasticSearchConnection(client, info);
         createCountUpdater.incrementAndGet(this);
-
         return conn;
+    }
+
+    private void createClient(String url) {
+        this.client = new Client();
+        String[] hostAndPortArray = url.split("/")[2].split(",");
+        client.init(hostAndPortArray, properties);
     }
 
     private void createAndLogThread() {
@@ -1339,7 +1363,7 @@ public class ElasticSearchDruidDataSource extends DruidDataSource {
 
         DruidConnectionHolder holder;
 
-        for (boolean createDirect = false;;) {
+        for (boolean createDirect = false; ; ) {
             if (createDirect) {
                 createStartNanosUpdater.set(this, System.nanoTime());
                 if (creatingCountUpdater.compareAndSet(this, 0, 1)) {
@@ -1549,7 +1573,7 @@ public class ElasticSearchDruidDataSource extends DruidDataSource {
         if (logDifferentThread //
                 && (!isAsyncCloseConnectionEnable()) //
                 && pooledConnection.ownerThread != Thread.currentThread()//
-                ) {
+        ) {
             LOG.warn("get/close not same thread");
         }
 
@@ -1803,14 +1827,10 @@ public class ElasticSearchDruidDataSource extends DruidDataSource {
 
     public void unregisterMbean() {
         if (mbeanRegistered) {
-            AccessController.doPrivileged(new PrivilegedAction<Object>() {
-
-                @Override
-                public Object run() {
-                    DruidDataSourceStatManager.removeDataSource(ElasticSearchDruidDataSource.this);
-                    ElasticSearchDruidDataSource.this.mbeanRegistered = false;
-                    return null;
-                }
+            AccessController.doPrivileged((PrivilegedAction<Object>) () -> {
+                DruidDataSourceStatManager.removeDataSource(ElasticSearchDruidDataSource.this);
+                ElasticSearchDruidDataSource.this.mbeanRegistered = false;
+                return null;
             });
         }
     }
@@ -2121,7 +2141,7 @@ public class ElasticSearchDruidDataSource extends DruidDataSource {
         value.setCommitCount(commitCountUpdater.getAndSet(this, 0));
         value.setRollbackCount(rollbackCountUpdater.getAndSet(this, 0));
 
-        value.setPstmtCacheHitCount(cachedPreparedStatementHitCountUpdater.getAndSet(this,0));
+        value.setPstmtCacheHitCount(cachedPreparedStatementHitCountUpdater.getAndSet(this, 0));
         value.setPstmtCacheMissCount(cachedPreparedStatementMissCountUpdater.getAndSet(this, 0));
 
         value.setStartTransactionCount(startTransactionCountUpdater.getAndSet(this, 0));
@@ -2195,7 +2215,7 @@ public class ElasticSearchDruidDataSource extends DruidDataSource {
 
     public class CreateConnectionTask implements Runnable {
 
-        private int errorCount   = 0;
+        private int errorCount = 0;
         private boolean initTask = false;
 
         public CreateConnectionTask() {
@@ -2212,7 +2232,7 @@ public class ElasticSearchDruidDataSource extends DruidDataSource {
         }
 
         private void runInternal() {
-            for (;;) {
+            for (; ; ) {
 
                 // addLast
                 lock.lock();
@@ -2234,7 +2254,7 @@ public class ElasticSearchDruidDataSource extends DruidDataSource {
                                 && (!(keepAlive && activeCount + poolingCount < minIdle))
                                 && (!initTask)
                                 && !isFailContinuous()
-                                ) {
+                        ) {
                             createTaskCount--;
                             return;
                         }
@@ -2400,7 +2420,7 @@ public class ElasticSearchDruidDataSource extends DruidDataSource {
                         if (poolingCount >= notEmptyWaitThreadCount //
                                 && (!(keepAlive && activeCount + poolingCount < minIdle))
                                 && !isFailContinuous()
-                                ) {
+                        ) {
                             empty.await();
                         }
 
@@ -2482,7 +2502,7 @@ public class ElasticSearchDruidDataSource extends DruidDataSource {
 
     public class DestroyConnectionThread extends Thread {
 
-        public DestroyConnectionThread(String name){
+        public DestroyConnectionThread(String name) {
             super(name);
             this.setDaemon(true);
         }
@@ -2727,7 +2747,7 @@ public class ElasticSearchDruidDataSource extends DruidDataSource {
 
                     if (idleMillis < minEvictableIdleTimeMillis
                             && idleMillis < keepAliveBetweenTimeMillis
-                            ) {
+                    ) {
                         break;
                     }
 

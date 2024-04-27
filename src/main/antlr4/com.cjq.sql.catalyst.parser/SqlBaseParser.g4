@@ -969,8 +969,6 @@ predicate
     | IS NOT? kind=NULL
     | IS NOT? kind=(TRUE | FALSE | UNKNOWN)
     | IS NOT? kind=DISTINCT FROM right=valueExpression
-    | kind=(MATCH | MATCH_PHRASE | TERM) valueExpression
-    | FUZZY LEFT_PAREN valueExpression COMMA valueExpression RIGHT_PAREN
     ;
 
 
@@ -983,6 +981,7 @@ valueExpression
     | left=valueExpression operator=AMPERSAND right=valueExpression                          #arithmeticBinary
     | left=valueExpression operator=HAT right=valueExpression                                #arithmeticBinary
     | left=valueExpression operator=PIPE right=valueExpression                               #arithmeticBinary
+    | left=valueExpression operator=(MATCH | MATCH_PHRASE | TERM) right=valueExpression      #arithmeticBinary
     | left=valueExpression comparisonOperator right=valueExpression                          #comparison
     ;
 

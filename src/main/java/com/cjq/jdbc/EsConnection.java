@@ -1,20 +1,28 @@
 package com.cjq.jdbc;
 
+import com.alibaba.druid.pool.DruidDataSource;
+
 import java.sql.*;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Executor;
 
 public class EsConnection implements Connection {
+    private DruidDataSource dataSource;
+    private Connection connection;
+
+    public EsConnection(DruidDataSource dataSource, Connection connection) {
+        this.dataSource = dataSource;
+        this.connection = connection;
+    }
 
     @Override
     public Statement createStatement() throws SQLException {
-        return null;
+        return new EsStatement(connection, dataSource);
     }
 
     @Override
     public PreparedStatement prepareStatement(String sql) throws SQLException {
-//        return new EsPreparedStatement(sql);
         return null;
     }
 
