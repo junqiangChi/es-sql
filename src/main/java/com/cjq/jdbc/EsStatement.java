@@ -1,11 +1,29 @@
 package com.cjq.jdbc;
 
+import com.alibaba.druid.pool.DruidDataSource;
+
 import java.sql.*;
 
 public class EsStatement implements Statement {
+    private final Connection connection;
+    private PreparedStatement ps;
+    private DruidDataSource dataSource;
+    private ResultSet resultSet;
+
+    public EsStatement(Connection connection, DruidDataSource dataSource) {
+        this.connection = connection;
+        this.dataSource = dataSource;
+    }
+
+    public void setResultSet(ResultSet resultSet) {
+        this.resultSet = resultSet;
+    }
+
     @Override
     public ResultSet executeQuery(String sql) throws SQLException {
-        return null;
+        ps = connection.prepareStatement(sql);
+        setResultSet(ps.getResultSet());
+        return getResultSet();
     }
 
     @Override

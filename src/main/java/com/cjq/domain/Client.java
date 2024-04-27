@@ -1,5 +1,6 @@
 package com.cjq.domain;
 
+import com.cjq.common.EsJdbcConfig;
 import org.apache.http.HttpHost;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
@@ -8,41 +9,38 @@ import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
 
+import java.util.Arrays;
+import java.util.Properties;
+import java.util.stream.Collectors;
+
 public class Client {
+    private RestHighLevelClient restHighLevelClient;
 
-  private String username;
-  private String password;
-  private String hostname;
-  private int port;
+    public Client() {
 
-  public Client() {
+    }
 
-  }
+    public void init(String[] hostAndPorts, Properties properties) {
+        String username = properties.getProperty(EsJdbcConfig.USERNAME);
+        String password = properties.getProperty(EsJdbcConfig.PASSWORD);
+        HttpHost[] httpHosts = Arrays.stream(hostAndPorts).map(host -> {
+            String[] hostAndPort = host.split(":");
+            return new HttpHost(hostAndPort[0], Integer.parseInt(hostAndPort[1]), "http");
+        }).collect(Collectors.toList()).toArray(HttpHost[]::new);
+        if (username != null && password != null) {
+            CredentialsProvider credProv = new BasicCredentialsProvider();
+            credProv.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials(username, password));
+            restHighLevelClient = new RestHighLevelClient(RestClient.builder(httpHosts).setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder.setDefaultCredentialsProvider(credProv)));
+        } else {
+            restHighLevelClient = new RestHighLevelClient(RestClient.builder(httpHosts));
+        }
+    }
 
-  public Client(String username, String password, String hostname) {
-    this.username = username;
-    this.password = password;
-    this.hostname = hostname;
-    this.port = 9200;
-  }
-
-  public Client(String username, String password, String hostname, int port) {
-    this.username = username;
-    this.password = password;
-    this.hostname = hostname;
-    this.port = port;
-  }
-
-  public RestHighLevelClient getClient() {
-    CredentialsProvider credProv = new BasicCredentialsProvider();
-    credProv.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials(username, password));
-    return new RestHighLevelClient(RestClient.builder(
-            new HttpHost(hostname, port, "http")).
-        setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder
-            .setDefaultCredentialsProvider(credProv)));
-  }
+    public RestHighLevelClient getClient() {
+        return this.restHighLevelClient;
+    }
 
 
-  public void close() {
-  }
+    public void close() {
+    }
 }

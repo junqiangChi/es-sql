@@ -1,9 +1,10 @@
 package com.cjq;
 
-import com.cjq.jdbc.EsDriver;
+import com.cjq.domain.EqlParserDriver;
 import com.cjq.parser.AstBuilder;
 import com.cjq.parser.SqlBaseLexer;
 import com.cjq.parser.SqlBaseParser;
+import com.cjq.plan.logical.LogicalPlan;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.junit.Test;
@@ -11,11 +12,11 @@ import org.junit.Test;
 public class TestDemo {
     @Test
     public void test(){
-        String sql = "select f1,F2,fff, FFff from tbl1 where f1 match 'a'";
-        SqlBaseLexer lexer = new SqlBaseLexer(new EsDriver.UpperCaseCharStream(CharStreams.fromString(sql)));
+        String sql = "SELECT f1 AS f0,f2,FFf, FFFF FROM TBL1 WHERE F1 MATCH 'A' AND F2 = '22' LIMIT 10";
+        SqlBaseLexer lexer = new SqlBaseLexer(new EqlParserDriver.UpperCaseCharStream(CharStreams.fromString(sql)));
         SqlBaseParser parser = new SqlBaseParser(new CommonTokenStream(lexer));
         AstBuilder astBuilder = new AstBuilder();
-        astBuilder.visitQuery(parser.query());
-
+        LogicalPlan query = astBuilder.visitSingleStatement(parser.singleStatement());
+        System.out.println(query);
     }
 }
