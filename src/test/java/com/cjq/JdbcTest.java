@@ -22,8 +22,8 @@ public class JdbcTest {
         try {
             Properties properties = new Properties();
             properties.put(EsJdbcConfig.ES_URL, "jdbc:elasticsearch://node001:9200");
-//            properties.put(EsJdbcConfig.USERNAME, "elastic");
-//            properties.put(EsJdbcConfig.PASSWORD, "123456");
+            properties.put(EsJdbcConfig.USERNAME, "elastic");
+            properties.put(EsJdbcConfig.PASSWORD, "123456");
             DruidDataSource dds = (DruidDataSource) ElasticSearchDruidDataSourceFactory.createDataSource(properties);
 
             DruidPooledConnection connection = dds.getConnection();
