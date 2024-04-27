@@ -26,11 +26,12 @@ public class Client {
         HttpHost[] httpHosts = Arrays.stream(hostAndPorts).map(host -> {
             String[] hostAndPort = host.split(":");
             return new HttpHost(hostAndPort[0], Integer.parseInt(hostAndPort[1]), "http");
-        }).collect(Collectors.toList()).toArray(HttpHost[]::new);
+        }).toArray(HttpHost[]::new);
         if (username != null && password != null) {
             CredentialsProvider credProv = new BasicCredentialsProvider();
             credProv.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials(username, password));
-            restHighLevelClient = new RestHighLevelClient(RestClient.builder(httpHosts).setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder.setDefaultCredentialsProvider(credProv)));
+            restHighLevelClient = new RestHighLevelClient(RestClient.builder(httpHosts)
+                    .setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder.setDefaultCredentialsProvider(credProv)));
         } else {
             restHighLevelClient = new RestHighLevelClient(RestClient.builder(httpHosts));
         }
