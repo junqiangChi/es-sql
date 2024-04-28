@@ -46,27 +46,32 @@ public class HandleRequest {
         if (where == null) {
             return;
         }
-        BoolQueryBuilder boolQueryBuilder = new BoolQueryBuilder();
-        do {
-            Where.Condition condition = where.getCondition();
-            if (where.getOpr() == WhereOpr.AND) {
-                boolQueryBuilder.must(setWhereType(condition));
-            } else if (where.getOpr() == WhereOpr.OR) {
-                boolQueryBuilder.should(setWhereType(condition));
-            }
-            where = where.getNextWhere();
-        } while (where != null);
-        searchSourceBuilder.query(boolQueryBuilder);
+        if (where.getOpr() == null) {
+            searchSourceBuilder.query(setWhereType(where.getCondition()));
+        } else {
+            BoolQueryBuilder boolQueryBuilder = new BoolQueryBuilder();
+            do {
+                Where.Condition condition = where.getCondition();
+                if (where.getOpr() == WhereOpr.AND) {
+                    boolQueryBuilder.must(setWhereType(condition));
+                } else if (where.getOpr() == WhereOpr.OR) {
+                    boolQueryBuilder.should(setWhereType(condition));
+                }
+
+                where = where.getNextWhere();
+            } while (where != null);
+            searchSourceBuilder.query(boolQueryBuilder);
+        }
     }
 
     private QueryBuilder setWhereType(Where.Condition condition) {
         switch (WhereType.valueOf(condition.getKeyword())) {
             case MATCH:
                 return new MatchQueryBuilder(condition.getField(), condition.getText());
-            case MULTI_MATCH:
+            case MATCH_PHRASE:
                 return new MatchPhraseQueryBuilder(condition.getField(), condition.getText());
             case TERM:
-                return new TermQueryBuilder(condition.getField(), condition.getText());
+                return new TermQueryBuilder(condition.getField(), condition.getText().replace("'", ""));
             default:
                 throw new RuntimeException("unknown where type");
 

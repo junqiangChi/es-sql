@@ -27,7 +27,7 @@ public class JdbcTest {
             DruidDataSource dds = (DruidDataSource) ElasticSearchDruidDataSourceFactory.createDataSource(properties);
 
             DruidPooledConnection connection = dds.getConnection();
-            String sql = "SELECT DATA_ID from ori_data_http limit 10";
+            String sql = "SELECT DATA_ID, COMMON_TYPE from ori_data_im where DATA_ID = '1' limit 10";
             PreparedStatement ps = connection.prepareStatement(sql);
             ResultSet rs = ps.executeQuery();
             ResultSetMetaData metaData = rs.getMetaData();
