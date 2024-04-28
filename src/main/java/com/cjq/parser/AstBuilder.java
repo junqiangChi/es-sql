@@ -44,16 +44,19 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
         SqlBaseParser.FromClauseContext fromClauseContext = ctx.fromClause();
         String index = fromClauseContext.relation().get(0).getText();
         List<Field> fields = selectClauseContext.namedExpressionSeq().namedExpression().stream().map(f ->
-                f.errorCapturingIdentifier() != null ?
-                        new Field(f.expression().getText(), f.errorCapturingIdentifier().getText()) :
-                        new Field(f.expression().getText())
+            f.errorCapturingIdentifier() != null ?
+                new Field(f.expression().getText(), f.errorCapturingIdentifier().getText(), isConstant(f)) :
+                new Field(f.expression().getText(), null, isConstant(f))
         ).collect(Collectors.toList());
         SqlBaseParser.WhereClauseContext whereClauseContext = ctx.whereClause();
+        SqlBaseParser.BooleanExpressionContext booleanExpressionContext = whereClauseContext.booleanExpression();
+        if(booleanExpressionContext instanceof SqlBaseParser.PredicatedContext){
+            SqlBaseParser.PredicatedContext predicatedContext = (SqlBaseParser.PredicatedContext) booleanExpressionContext;
+        }
         Where where = new Where();
         if (whereClauseContext != null) {
             ParseTree parseTree = whereClauseContext.children.get(1);
             for (int i = 0; i < parseTree.getChildCount(); i += 2) {
-                System.out.println(parseTree.getChild(i).getText());
                 if (where.getCondition() == null) {
                     handleWhere(where, parseTree, i);
                 } else {
@@ -67,7 +70,9 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
     }
 
     private void handleWhere(Where where, ParseTree parseTree, int i) {
-        Where.Condition condition = new Where.Condition(parseTree.getChild(i).getChild(0).getChild(0).getText(), parseTree.getChild(i).getChild(0).getChild(1).getText(), parseTree.getChild(i).getChild(0).getChild(2).getText());
+        Where.Condition condition = new Where.Condition(parseTree.getChild(i).getChild(0).getChild(0).getText(),
+            parseTree.getChild(i).getChild(0).getChild(1).getText(),
+            parseTree.getChild(i).getChild(0).getChild(2).getText());
         where.setCondition(condition);
         if (i < parseTree.getChildCount() - 1) {
             where.setOpr(WhereOpr.valueOf(parseTree.getChild(i + 1).getText()));
@@ -79,4 +84,17 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
         return ctx.limit != null ? new Limit(Integer.parseInt(ctx.limit.getText())) : visit(ctx);
     }
 
+    private boolean isConstant(SqlBaseParser.NamedExpressionContext ctx) {
+        SqlBaseParser.BooleanExpressionContext booleanExpression = ctx.expression().booleanExpression();
+        if (booleanExpression instanceof SqlBaseParser.PredicatedContext) {
+            SqlBaseParser.PredicatedContext predicatedContext = (SqlBaseParser.PredicatedContext) booleanExpression;
+            SqlBaseParser.ValueExpressionContext valueExpression = predicatedContext.valueExpression();
+            if (valueExpression instanceof SqlBaseParser.ValueExpressionDefaultContext) {
+                SqlBaseParser.ValueExpressionDefaultContext valueExpressionDefaultContext = (SqlBaseParser.ValueExpressionDefaultContext) valueExpression;
+                SqlBaseParser.PrimaryExpressionContext primaryExpression = valueExpressionDefaultContext.primaryExpression();
+                return primaryExpression instanceof SqlBaseParser.ConstantDefaultContext;
+            }
+        }
+        return false;
+    }
 }

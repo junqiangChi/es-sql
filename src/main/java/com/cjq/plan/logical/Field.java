@@ -3,10 +3,25 @@ package com.cjq.plan.logical;
 public class Field {
     private String field;
     private String alias;
+    private boolean isConstant;
 
     public Field(String field, String alias) {
         this.field = field;
         this.alias = alias;
+    }
+
+    public Field(String field, String alias, boolean isConstant) {
+        this.field = field;
+        this.alias = alias;
+        this.isConstant = isConstant;
+    }
+
+    public boolean isConstant() {
+        return isConstant;
+    }
+
+    public void setConstant(boolean constant) {
+        isConstant = constant;
     }
 
     public Field(String field) {
@@ -32,8 +47,9 @@ public class Field {
     @Override
     public String toString() {
         return "Field{" +
-                "field='" + field + '\'' +
-                ", alias='" + alias + '\'' +
-                '}';
+            "field='" + field + '\'' +
+            ", alias='" + alias + '\'' +
+            ", isConstant=" + isConstant +
+            '}';
     }
 }

@@ -9,6 +9,7 @@ import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Properties;
 import java.util.stream.Collectors;
@@ -17,7 +18,6 @@ public class Client {
     private RestHighLevelClient restHighLevelClient;
 
     public Client() {
-
     }
 
     public void init(String[] hostAndPorts, Properties properties) {
@@ -43,5 +43,10 @@ public class Client {
 
 
     public void close() {
+        try {
+            restHighLevelClient.close();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 }
