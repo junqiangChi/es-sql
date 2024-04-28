@@ -9,8 +9,8 @@ Es-Sql是使用SQL语法操作[Elasticsearch](https://github.com/elastic/elastic
 
 | 参数key              | 默认值    | 类型      | 描述                |
 |--------------------|--------|---------|-------------------|
-| username           | (none) | String  | ElasticSearch用户名  |
-| password           | (none) | String  | ElasticSearch用户密码 |
+| username           | (none) | String  | Elasticsearch用户名  |
+| password           | (none) | String  | Elasticsearch用户密码 |
 | url                | (none) | String  | jdbc连接的Url，例：jdbc:elasticsearch://localhost:9200       |
 | include.index.name | false  | Boolean | 查询结果是否包含索引名       |
 | include.doc.id     | false  | Boolean | 查询结果是否包含doc_id    |
