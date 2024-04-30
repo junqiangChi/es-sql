@@ -12,11 +12,15 @@ import org.junit.Test;
 public class TestDemo {
     @Test
     public void test(){
-        String sql = "SELECT f1 AS f0,f2,FFf, FFFF FROM TBL1 WHERE F1 MATCH 'A' AND F2 = '22' LIMIT 10";
+        String sql = "SELECT * FROM TBL1 WHERE F1 REGEXP '2' AND F2 = '1' AND F2 between '1' and '2'";
         SqlBaseLexer lexer = new SqlBaseLexer(new EqlParserDriver.UpperCaseCharStream(CharStreams.fromString(sql)));
         SqlBaseParser parser = new SqlBaseParser(new CommonTokenStream(lexer));
         AstBuilder astBuilder = new AstBuilder();
         LogicalPlan query = astBuilder.visitSingleStatement(parser.singleStatement());
         System.out.println(query);
+    }
+
+    @Test
+    public void test1(){
     }
 }

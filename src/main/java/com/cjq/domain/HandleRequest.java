@@ -1,7 +1,6 @@
 package com.cjq.domain;
 
 import com.cjq.common.WhereOpr;
-import com.cjq.common.WhereType;
 import com.cjq.plan.logical.*;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
@@ -51,7 +50,7 @@ public class HandleRequest {
         } else {
             BoolQueryBuilder boolQueryBuilder = new BoolQueryBuilder();
             do {
-                Where.Condition condition = where.getCondition();
+                Condition condition = where.getCondition();
                 if (where.getOpr() == WhereOpr.AND) {
                     boolQueryBuilder.must(setWhereType(condition));
                 } else if (where.getOpr() == WhereOpr.OR) {
@@ -64,14 +63,42 @@ public class HandleRequest {
         }
     }
 
-    private QueryBuilder setWhereType(Where.Condition condition) {
-        switch (WhereType.valueOf(condition.getKeyword())) {
-            case MATCH:
-                return new MatchQueryBuilder(condition.getField(), condition.getText());
+    /**
+     * @param condition
+     * @return
+     */
+    private QueryBuilder setWhereType(Condition condition) {
+        switch (condition.getOpera()) {
+            case GT:
+                return new RangeQueryBuilder(condition.getField()).gt(condition.getValue().getText());
+            case LT:
+                return null;
+            case GTE:
+                return null;
+            case LTE:
+                return null;
+            case EQ:
             case MATCH_PHRASE:
-                return new MatchPhraseQueryBuilder(condition.getField(), condition.getText());
+                return new MatchPhraseQueryBuilder(condition.getField(), condition.getValue().getText());
+            case MATCH:
+                return new MatchQueryBuilder(condition.getField(), condition.getValue().getText());
             case TERM:
-                return new TermQueryBuilder(condition.getField(), condition.getText().replace("'", ""));
+                return new TermQueryBuilder(condition.getField(), condition.getValue().getText());
+            case IN:
+                return null;
+            case NIN:
+                return null;
+            case BETWEEN:
+                return null;
+            case NBETWEEN:
+                return null;
+            case LIKE:
+                return new WildcardQueryBuilder(condition.getField(),
+                        condition.getValue().getText().toString().replace("%", "*"));
+            case NLIKE:
+                return null;
+            case REGEXP:
+                return null;
             default:
                 throw new RuntimeException("unknown where type");
 
