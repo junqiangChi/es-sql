@@ -2,7 +2,7 @@ package com.cjq.plan.logical;
 
 import java.util.List;
 
-public class Select {
+public class Select extends LogicalPlan{
    private List<Field> fields;
 
     public Select(List<Field> fields) {

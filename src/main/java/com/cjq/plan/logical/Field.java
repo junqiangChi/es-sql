@@ -1,6 +1,6 @@
 package com.cjq.plan.logical;
 
-public class Field {
+public class Field extends LogicalPlan{
     private String field;
     private String alias;
     private boolean isConstant;

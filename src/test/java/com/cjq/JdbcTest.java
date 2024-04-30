@@ -27,7 +27,43 @@ public class JdbcTest {
             DruidDataSource dds = (DruidDataSource) ElasticSearchDruidDataSourceFactory.createDataSource(properties);
 
             DruidPooledConnection connection = dds.getConnection();
-            String sql = "SELECT DATA_ID, COMMON_TYPE from ori_data_im where DATA_ID = '1' limit 10";
+            /*
+                PUT my_index_1/
+                {
+                  "mappings": {
+                    "properties": {
+                      "f1": {
+                        "type": "long"
+                      },
+                      "f2": {
+                        "type": "text",
+                        "analyzer": "ik_smart"
+                      },
+                      "f3": {
+                        "type": "keyword"
+                      },
+                      "f4": {
+                        "type": "text"
+                      }
+                    }
+                  }
+                }
+
+                PUT my_index_1/_doc/1
+                {
+                  "f1": 5,
+                  "f2": "你好，世界",
+                  "f3": "cjq945",
+                  "f4": "cjq"
+                }
+             */
+            String sql = "SELECT * FROM my_index_1 WHERE f1 > 2";
+            // String sql = "SELECT * FROM my_index_1 WHERE f2 match '你好'";
+            // String sql = "SELECT * FROM my_index_1 WHERE f3 like 'cjq%'";
+            // String sql = "SELECT * FROM my_index_1 WHERE f4 = 'cjq'";
+            /**
+             * 以上测试全部正常
+             */
             PreparedStatement ps = connection.prepareStatement(sql);
             ResultSet rs = ps.executeQuery();
             ResultSetMetaData metaData = rs.getMetaData();

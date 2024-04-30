@@ -1,10 +1,27 @@
 package com.cjq.plan.logical;
 
-public class From {
+public class From extends LogicalPlan{
     private String index;
+    private String alias;
+
+    public From() {
+    }
 
     public From(String index) {
         this.index = index;
+    }
+
+    public From(String index, String alias) {
+        this.index = index;
+        this.alias = alias;
+    }
+
+    public String getAlias() {
+        return alias;
+    }
+
+    public void setAlias(String alias) {
+        this.alias = alias;
     }
 
     public String getIndex() {
