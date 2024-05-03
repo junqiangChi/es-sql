@@ -7,12 +7,12 @@ Es-Sql是使用SQL语法操作[Elasticsearch](https://github.com/elastic/elastic
 
 使用Jdbc连接时可设置的配置参数
 
-| 参数key              | 默认值    | 类型      | 描述                |
-|--------------------|--------|---------|-------------------|
-| username           | (none) | String  | Elasticsearch用户名  |
-| password           | (none) | String  | Elasticsearch用户密码 |
-| url                | (none) | String  | jdbc连接的Url，例：jdbc:elasticsearch://localhost:9200       |
-| include.index.name | false  | Boolean | 查询结果是否包含索引名       |
-| include.doc.id     | false  | Boolean | 查询结果是否包含doc_id    |
-| include.type       | false  | Boolean | 查询结果是否包含类型        |
-| include.version    | false  | Boolean | 查询结果是否包含version   |
+| 参数key              | 默认值    | 类型      | 描述                                               |
+|--------------------|--------|---------|--------------------------------------------------|
+| username           | (none) | String  | Elasticsearch用户名                                 |
+| password           | (none) | String  | Elasticsearch用户密码                                |
+| url                | (none) | String  | jdbc连接的Url，例：jdbc:elasticsearch://localhost:9200 |
+| include.index.name | false  | Boolean | 查询结果是否包含索引名                                      |
+| include.doc.id     | false  | Boolean | 查询结果是否包含doc_id                                   |
+| include.type       | false  | Boolean | 查询结果是否包含类型                                       |
+| include.score      | false  | Boolean | 查询结果是否包含score                                    |

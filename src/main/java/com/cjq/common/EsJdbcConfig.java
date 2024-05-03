@@ -7,5 +7,5 @@ public class EsJdbcConfig {
     public static final String INCLUDE_INDEX = "include.index.name";
     public static final String INCLUDE_DOC_ID = "include.doc.id";
     public static final String INCLUDE_TYPE = "include.type";
-    public static final String INCLUDE_VERSION = "include.version";
+    public static final String INCLUDE_SCORE = "include.score";
 }

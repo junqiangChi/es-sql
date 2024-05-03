@@ -16,8 +16,12 @@ public class LogicalPlan {
         return plan;
     }
 
-    public void setPlan(LogicalPlan plan) {
-        this.plan = plan;
+    public void setPlan(LogicalPlan nextPlan) {
+        LogicalPlan plan = this;
+        while(plan.plan != null){
+            plan = plan.plan;
+        }
+        plan.plan = nextPlan;
     }
     public <C> LogicalPlan optionalMap(C ctx, BiFunction<C, LogicalPlan, LogicalPlan> f) {
         if (ctx != null)
