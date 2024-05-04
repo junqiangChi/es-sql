@@ -1,16 +1,12 @@
 package com.cjq.parser;
 
-import com.cjq.common.OperatorSymbol;
 import com.cjq.common.WhereOpr;
 import com.cjq.exception.EsSqlParseException;
 import com.cjq.plan.logical.*;
 import org.antlr.v4.runtime.Token;
 import org.antlr.v4.runtime.tree.ParseTree;
-import org.antlr.v4.runtime.tree.TerminalNode;
 
 import java.util.List;
-import java.util.Spliterator;
-import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
 public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
@@ -52,11 +48,7 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
     @Override
     public LogicalPlan visitRegularQuerySpecification(SqlBaseParser.RegularQuerySpecificationContext ctx) {
         SqlBaseParser.SelectClauseContext selectClauseContext = ctx.selectClause();
-        List<SqlBaseParser.RelationContext> relation = ctx.fromClause().relation();
-        From from = new From(relation.get(0).getText());
-        if (relation.size() > 1) {
-            from.setAlias(relation.get(1).getText());
-        }
+        From from = (From) visit(ctx.fromClause());
         List<Field> fields = selectClauseContext.namedExpressionSeq().namedExpression().stream()
                 .map(f -> f.errorCapturingIdentifier() != null ? new Field(f.expression().getText(),
                         f.errorCapturingIdentifier().getText(), isConstant(f)) :
@@ -66,9 +58,24 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
         return new Query(new Select(fields), from, (Where) where);
     }
 
+
+    /**
+     * 处理表名及别名
+     *
+     * @param ctx the parse tree
+     * @return
+     */
     @Override
+    public LogicalPlan visitTableName(SqlBaseParser.TableNameContext ctx) {
+        String tableName = ctx.identifierReference().getText();
+        String tableAlias = ctx.tableAlias().getText();
+        return new From(tableName, tableAlias);
+    }
+
+    @Override
+
     public LogicalPlan visitNumericLiteral(SqlBaseParser.NumericLiteralContext ctx) {
-        return new Value(ctx.getText());
+        return new Value(Double.parseDouble(ctx.getText()));
     }
 
     @Override
@@ -92,7 +99,16 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
             SqlBaseParser.PredicateContext predicate = ctx.predicate();
             String operatorSymbol = getOperatorSymbol(predicate);
             Value value = null;
-            if (predicate.valueExpression() != null && predicate.valueExpression().size() > 1) {
+            List<SqlBaseParser.ExpressionContext> expression = predicate.expression();
+            if (expression != null && expression.size() > 0) {
+                for (SqlBaseParser.ExpressionContext expressionContext : expression) {
+                    if (value == null) {
+                        value = (Value) visit(expressionContext);
+                    } else {
+                        value.setPlan(visit(expressionContext));
+                    }
+                }
+            } else if (predicate.valueExpression() != null && predicate.valueExpression().size() > 1) {
                 for (SqlBaseParser.ValueExpressionContext valueExpressionContext : predicate.valueExpression()) {
                     if (value == null) {
                         value = (Value) visit(valueExpressionContext);
@@ -116,7 +132,7 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
         Where where = null;
         SqlBaseParser.BooleanExpressionContext left = booleanExpressionContexts.get(0);
         SqlBaseParser.BooleanExpressionContext right = booleanExpressionContexts.get(1);
-        WhereOpr whereOpr = WhereOpr.valueOf(ctx.operator.getText());
+        WhereOpr whereOpr = WhereOpr.valueOf(ctx.operator.getText().toUpperCase());
         if (right instanceof SqlBaseParser.PredicatedContext) {
             where = (Where) visit(right);
             where.setOpr(whereOpr);
@@ -250,7 +266,7 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
 
     /**
      * v1.1 使用递归的方式收集wheres
-     * 把v1.0的循环改成了递归，有点聪明，但不多
+     * 把v1.0的循环改成了递归，有点东西，但不多
      * 过时
      *
      * @param logicalBinaryContext A parent ParserContext {@link SqlBaseParser.LogicalBinaryContext}
@@ -297,8 +313,6 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
         ParseTree childMid = predicatedContext.valueExpression().getChild(1);
         SqlBaseParser.ValueExpressionDefaultContext childRight =
                 (SqlBaseParser.ValueExpressionDefaultContext) predicatedContext.valueExpression().getChild(2);
-        return new Condition(childLeft.primaryExpression().getText(), childMid.getText(), new Value());
+        return new Condition(childLeft.primaryExpression().getText(), childMid.getText(), new Value(childRight.getText()));
     }
-
-
 }

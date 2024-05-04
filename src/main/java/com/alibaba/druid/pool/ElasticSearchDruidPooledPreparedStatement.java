@@ -1,21 +1,12 @@
 package com.alibaba.druid.pool;
 
 
-import com.cjq.common.EsJdbcConfig;
 import com.cjq.domain.Client;
 import com.cjq.domain.EqlParserDriver;
-import com.cjq.domain.HandleRequest;
 import com.cjq.jdbc.ObjectResult;
-import com.cjq.jdbc.ResultExecutor;
+import com.cjq.jdbc.HandleResult;
 import com.cjq.plan.logical.LogicalPlan;
-import com.cjq.plan.logical.Query;
-import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.common.document.DocumentField;
-import org.elasticsearch.search.SearchHit;
-import org.elasticsearch.search.SearchHits;
 
-import java.io.IOException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
@@ -50,7 +41,7 @@ public class ElasticSearchDruidPooledPreparedStatement extends DruidPooledPrepar
             EqlParserDriver eqlParserDriver = connection.getEqlParserDriver();
             LogicalPlan plan = eqlParserDriver.parser(getSql());
 
-            ObjectResult objectResult = new ResultExecutor(client, plan, properties).getObjectResultSet();
+            ObjectResult objectResult = new HandleResult(client, plan, properties).getObjectResultSet();
             ResultSet rs = new ElasticSearchResultSet(this, objectResult.getHeaders(), objectResult.getRows());
             DruidPooledResultSet poolableResultSet = new DruidPooledResultSet(this, rs);
             addResultSetTrace(poolableResultSet);

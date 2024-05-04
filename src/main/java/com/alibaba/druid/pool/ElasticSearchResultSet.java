@@ -20,11 +20,12 @@ public class ElasticSearchResultSet implements ResultSet {
     private List<List<Object>> rows;
     private List<Object> current = null;
     private List<String> headers = null;
-
     private ResultSetMetaData metaData;
+    private int rowsSize;
 
     public ElasticSearchResultSet(Statement statement, final List<String> headers, final List<List<Object>> lines) {
         this.rows = lines;
+        this.rowsSize = lines.size();
         this.headers = headers;
         metaData = new ElasticSearchResultSetMetaDataBase(headers);
     }
@@ -442,12 +443,12 @@ public class ElasticSearchResultSet implements ResultSet {
 
     @Override
     public void setFetchSize(int rows) throws SQLException {
-
+        this.rowsSize = rows;
     }
 
     @Override
     public int getFetchSize() throws SQLException {
-        return 0;
+        return rowsSize;
     }
 
     @Override

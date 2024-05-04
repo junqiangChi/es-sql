@@ -84,6 +84,9 @@ public class Condition {
             case "REGEXP":
                 this.opera = OperatorSymbol.REGEXP;
                 break;
+            case "NOT REGEXP":
+                this.opera = OperatorSymbol.NREGEXP;
+                break;
             case "MATCH":
                 this.opera = OperatorSymbol.MATCH;
                 break;

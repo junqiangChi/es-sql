@@ -12,7 +12,6 @@ import org.elasticsearch.client.RestHighLevelClient;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Properties;
-import java.util.stream.Collectors;
 
 public class Client {
     private RestHighLevelClient restHighLevelClient;

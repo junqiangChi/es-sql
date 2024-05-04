@@ -1,5 +1,6 @@
 package com.cjq.domain;
 
+import com.cjq.common.OperatorSymbol;
 import com.cjq.common.WhereOpr;
 import com.cjq.plan.logical.*;
 import org.elasticsearch.action.search.SearchRequest;
@@ -11,8 +12,9 @@ import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.search.fetch.subphase.FetchSourceContext;
 
 import java.io.IOException;
+import java.util.ArrayList;
 
-public class HandleRequest {
+public class RequestExecutor {
     public SearchResponse search(Query query, RestHighLevelClient client) throws IOException {
         SearchRequest searchRequest = new SearchRequest();
         SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
@@ -45,18 +47,27 @@ public class HandleRequest {
         if (where == null) {
             return;
         }
-        if (where.getOpr() == null) {
+        if (where.getOpr() == null && !where.getCondition().getOpera().equals(OperatorSymbol.NIN) &&
+                !where.getCondition().getOpera().equals(OperatorSymbol.NBETWEEN) &&
+                !where.getCondition().getOpera().equals(OperatorSymbol.NLIKE) &&
+                !where.getCondition().getOpera().equals(OperatorSymbol.NREGEXP)) {
             searchSourceBuilder.query(setWhereType(where.getCondition()));
         } else {
             BoolQueryBuilder boolQueryBuilder = new BoolQueryBuilder();
+            WhereOpr whereOpr = where.getOpr();
             do {
                 Condition condition = where.getCondition();
-                if (where.getOpr() == WhereOpr.AND) {
-                    boolQueryBuilder.must(setWhereType(condition));
+                if (condition.getOpera().equals(OperatorSymbol.NIN) ||
+                        condition.getOpera().equals(OperatorSymbol.NBETWEEN) ||
+                        condition.getOpera().equals(OperatorSymbol.NLIKE) ||
+                        condition.getOpera().equals(OperatorSymbol.NREGEXP)) {
+                    boolQueryBuilder.mustNot(setWhereType(condition));
                 } else if (where.getOpr() == WhereOpr.OR) {
                     boolQueryBuilder.should(setWhereType(condition));
+                } else if (whereOpr == WhereOpr.AND) {
+                    boolQueryBuilder.must(setWhereType(condition));
                 }
-
+                whereOpr = where.getOpr();
                 where = where.getNextWhere();
             } while (where != null);
             searchSourceBuilder.query(boolQueryBuilder);
@@ -72,11 +83,11 @@ public class HandleRequest {
             case GT:
                 return new RangeQueryBuilder(condition.getField()).gt(condition.getValue().getText());
             case LT:
-                return null;
+                return new RangeQueryBuilder(condition.getField()).lt(condition.getValue().getText());
             case GTE:
-                return null;
+                return new RangeQueryBuilder(condition.getField()).gte(condition.getValue().getText());
             case LTE:
-                return null;
+                return new RangeQueryBuilder(condition.getField()).lte(condition.getValue().getText());
             case EQ:
             case MATCH_PHRASE:
                 return new MatchPhraseQueryBuilder(condition.getField(), condition.getValue().getText());
@@ -84,21 +95,28 @@ public class HandleRequest {
                 return new MatchQueryBuilder(condition.getField(), condition.getValue().getText());
             case TERM:
                 return new TermQueryBuilder(condition.getField(), condition.getValue().getText());
-            case IN:
-                return null;
             case NIN:
-                return null;
+            case IN:
+                ArrayList<Object> values = new ArrayList<>();
+                Value v = condition.getValue();
+                values.add(v.getText());
+                while (v.getPlan() != null) {
+                    v = (Value) v.getPlan();
+                    values.add(v.getText());
+                }
+                return QueryBuilders.termsQuery(condition.getField(), values);
             case BETWEEN:
-                return null;
             case NBETWEEN:
-                return null;
+                return new RangeQueryBuilder(condition.getField())
+                        .gte(condition.getValue().getText())
+                        .lte(((Value) condition.getValue().getPlan()).getText());
+            case NLIKE:
             case LIKE:
                 return new WildcardQueryBuilder(condition.getField(),
                         condition.getValue().getText().toString().replace("%", "*"));
-            case NLIKE:
-                return null;
+            case NREGEXP:
             case REGEXP:
-                return null;
+                return new RegexpQueryBuilder(condition.getField(), condition.getValue().getText().toString());
             default:
                 throw new RuntimeException("unknown where type");
 

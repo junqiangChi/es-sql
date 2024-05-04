@@ -1,20 +1,20 @@
 package com.cjq.plan.logical;
 
 public class Value extends LogicalPlan{
-    private String text;
+    private Object text;
 
     public Value() {
     }
 
-    public Value(String text) {
+    public Value(Object text) {
         this.text = text;
     }
 
-    public String getText() {
+    public Object getText() {
         return text;
     }
 
-    public void setText(String text) {
+    public void setText(Object text) {
         this.text = text;
     }
 
