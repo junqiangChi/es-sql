@@ -19,8 +19,4 @@ public class TestDemo {
         LogicalPlan query = astBuilder.visitSingleStatement(parser.singleStatement());
         System.out.println(query);
     }
-
-    @Test
-    public void test1(){
-    }
 }

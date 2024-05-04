@@ -953,7 +953,7 @@ public class ElasticSearchDruidDataSource extends DruidDataSource {
             throw new JdbcUrlException("url format is wrong");
         }
         createClient(url);
-        Properties connectProperties = getConnectProperties();
+//        Properties connectProperties = getConnectProperties();
 
         Connection conn = null;
 
@@ -970,7 +970,7 @@ public class ElasticSearchDruidDataSource extends DruidDataSource {
         createStartNanosUpdater.set(this, connectStartNanos);
         creatingCountUpdater.incrementAndGet(this);
         try {
-            conn = createPhysicalConnection(url, connectProperties);
+            conn = createPhysicalConnection(url, properties);
             connectedNanos = System.nanoTime();
 
             if (conn == null) {
