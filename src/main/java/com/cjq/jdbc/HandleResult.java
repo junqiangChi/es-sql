@@ -84,7 +84,7 @@ public class HandleResult {
                 doc.put(Constant._ID, hit.getId());
             }
             if (isIncludeIndex) {
-                if (indexAlias != null) {
+                if (!"".equals(indexAlias) ) {
                     doc.put(Constant._INDEX, indexAlias);
                 } else {
                     doc.put(Constant._INDEX, hit.getIndex());
