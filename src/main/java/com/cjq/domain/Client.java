@@ -1,6 +1,6 @@
 package com.cjq.domain;
 
-import com.cjq.common.EsJdbcConfig;
+import com.cjq.common.ElasticsearchJdbcConfig;
 import org.apache.http.HttpHost;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
@@ -10,27 +10,30 @@ import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Properties;
 
 public class Client {
     private RestHighLevelClient restHighLevelClient;
+    private Boolean isClose = false;
 
-    public Client() {
-    }
-
-    public void init(String[] hostAndPorts, Properties properties) {
-        String username = properties.getProperty(EsJdbcConfig.USERNAME);
-        String password = properties.getProperty(EsJdbcConfig.PASSWORD);
-        HttpHost[] httpHosts = Arrays.stream(hostAndPorts).map(host -> {
-            String[] hostAndPort = host.split(":");
-            return new HttpHost(hostAndPort[0], Integer.parseInt(hostAndPort[1]), "http");
-        }).toArray(HttpHost[]::new);
+    public Client(HttpHost[] httpHosts, Properties properties) {
+        String username = properties.getProperty(ElasticsearchJdbcConfig.USERNAME.getName());
+        String password = properties.getProperty(ElasticsearchJdbcConfig.PASSWORD.getName());
+        String connectTimeout = properties.getProperty(ElasticsearchJdbcConfig.CONNECT_TIMEOUT.getName(),
+            ElasticsearchJdbcConfig.CONNECT_TIMEOUT.getDefaultValue());
+        String socketTimeout = properties.getProperty(ElasticsearchJdbcConfig.SOCKET_TIMEOUT.getName(),
+            ElasticsearchJdbcConfig.SOCKET_TIMEOUT.getDefaultValue());
         if (username != null && password != null) {
             CredentialsProvider credProv = new BasicCredentialsProvider();
             credProv.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials(username, password));
-            restHighLevelClient = new RestHighLevelClient(RestClient.builder(httpHosts)
-                    .setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder.setDefaultCredentialsProvider(credProv)));
+            restHighLevelClient = new RestHighLevelClient(
+                RestClient.builder(httpHosts)
+                    .setHttpClientConfigCallback(
+                        httpClientBuilder -> httpClientBuilder.setDefaultCredentialsProvider(credProv))
+                    .setRequestConfigCallback(
+                        requestConfigBuilder ->
+                            requestConfigBuilder.setConnectTimeout(Integer.parseInt(connectTimeout))
+                                .setSocketTimeout(Integer.parseInt(socketTimeout))));
         } else {
             restHighLevelClient = new RestHighLevelClient(RestClient.builder(httpHosts));
         }
@@ -40,6 +43,9 @@ public class Client {
         return this.restHighLevelClient;
     }
 
+    public Boolean isClose() {
+        return isClose;
+    }
 
     public void close() {
         try {
@@ -47,5 +53,6 @@ public class Client {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+        isClose = true;
     }
 }

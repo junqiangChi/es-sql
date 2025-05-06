@@ -1,9 +1,9 @@
 package com.cjq;
 
 import com.alibaba.druid.pool.DruidDataSource;
-import com.alibaba.druid.pool.DruidPooledConnection;
 import com.alibaba.druid.pool.ElasticSearchDruidDataSourceFactory;
-import com.cjq.common.EsJdbcConfig;
+import com.cjq.common.ElasticsearchJdbcConfig;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.sql.*;
@@ -12,24 +12,20 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Properties;
 
-/**
- * @author: Julian Chi
- * @date: 2024/4/23 10:48
- * @description:
- */
 public class JdbcTest {
+    Properties properties = new Properties();
+
+    @Before
+    public void before() {
+        properties.put(ElasticsearchJdbcConfig.ES_URL.getName(), "jdbc:elasticsearch://localhost:9200");
+        properties.put(ElasticsearchJdbcConfig.USERNAME.getName(), "elastic");
+        properties.put(ElasticsearchJdbcConfig.PASSWORD.getName(), "123456");
+        properties.put(ElasticsearchJdbcConfig.INCLUDE_INDEX.getName(), "true");
+        properties.put(ElasticsearchJdbcConfig.INCLUDE_DOC_ID.getName(), "true");
+    }
+
     @Test
     public void test() {
-        try {
-            Properties properties = new Properties();
-            properties.put(EsJdbcConfig.ES_URL, "jdbc:elasticsearch://node001:9200");
-            properties.put(EsJdbcConfig.USERNAME, "elastic");
-            properties.put(EsJdbcConfig.PASSWORD, "123456");
-            properties.put(EsJdbcConfig.INCLUDE_INDEX, "true");
-            properties.put(EsJdbcConfig.INCLUDE_DOC_ID, "true");
-            DruidDataSource dds = (DruidDataSource) ElasticSearchDruidDataSourceFactory.createDataSource(properties);
-
-            DruidPooledConnection connection = dds.getConnection();
             /*
                 PUT my_index_1/
                 {
@@ -86,7 +82,7 @@ public class JdbcTest {
                   "f2": "你好，世界"
                 }
              */
-            String sql = "SELECT * FROM my_index_1 t1 WHERE f3 NOT REGEXP '[a-z0-9]+' OR f1 > 1";
+//            String sql = "SELECT * FROM my_index_1 t1 WHERE f3 NOT REGEXP '[a-z0-9]+' OR f1 > 1";
 //            String sql = "SELECT * FROM my_index_1 t1 WHERE f3 REGEXP '[a-z0-9]+' AND f1 > 1";
 //            String sql = "SELECT * FROM my_index_1 t1 WHERE f3 REGEXP '[a-z0-9]+' and f1 > 1";
 //            String sql = "SELECT * FROM my_index_1 t1 WHERE f3 NOT REGEXP '[a-z0-9]+'";
@@ -95,15 +91,27 @@ public class JdbcTest {
 //            String sql = "SELECT * FROM my_index_1 t1 WHERE f1 not between 1 and 3";
 //            String sql = "SELECT * FROM my_index_1 t1 WHERE f1 in (1,2,3)";
 //            String sql = "SELECT * FROM my_index_1 t1 WHERE f1 not in (1,2,3)";
-//            String sql = "SELECT * FROM my_index_1 t1 WHERE f1 > 3";
 //            String sql = "SELECT * FROM my_index_1 WHERE f2 match '你好'";
 //            String sql = "SELECT * FROM my_index_1 WHERE f2 term '你好'";
 //            String sql = "SELECT * FROM my_index_1 WHERE f3 like 'cjq%'";
 //            String sql = "SELECT * FROM my_index_1 WHERE f3 not like 'cjq%'";
-//            String sql = "SELECT * FROM my_index_1 WHERE f4 = 'cjq'";
-            /**
-             * 以上测试全部正常
-             */
+        String sql = "select 1 f, '1' ff,f2, f1 from my_index order by f3";
+        sqlExecute(sql);
+
+    }
+
+    private Connection getConnection() throws Exception {
+        DruidDataSource dds = (DruidDataSource) ElasticSearchDruidDataSourceFactory.createDataSource(properties);
+        return dds.getConnection();
+    }
+
+    private Connection getConnection2() throws Exception {
+        Class.forName("com.cjq.jdbc.EsDriver");
+        return DriverManager.getConnection(properties.getProperty("url"), properties);
+    }
+
+    private void sqlExecute(String sql) {
+        try (Connection connection = getConnection2()) {
             PreparedStatement ps = connection.prepareStatement(sql);
             ResultSet rs = ps.executeQuery();
             ResultSetMetaData metaData = rs.getMetaData();
@@ -125,7 +133,8 @@ public class JdbcTest {
                 System.out.println(resultMap);
                 count++;
             }
-            System.out.println(count);
+            System.out.println("查询条数：" + count);
+            ps.close();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

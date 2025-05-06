@@ -1,10 +1,7 @@
 package com.alibaba.druid.pool;
 
 
-import com.cjq.domain.Client;
-
 import javax.sql.DataSource;
-import java.util.Map;
 import java.util.Properties;
 
 /**

@@ -1,9 +1,17 @@
 package com.cjq.plan.logical;
 
+
 import java.util.List;
 
-public class Select extends LogicalPlan{
-   private List<Field> fields;
+public class Select extends LogicalPlan {
+    private List<Field> fields;
+
+    @Override
+    public String toString() {
+        return "Select{" +
+                "fields=" + fields +
+                '}';
+    }
 
     public Select(List<Field> fields) {
         this.fields = fields;
@@ -15,12 +23,5 @@ public class Select extends LogicalPlan{
 
     public void setFields(List<Field> fields) {
         this.fields = fields;
-    }
-
-    @Override
-    public String toString() {
-        return "Select{" +
-                "fields=" + fields +
-                '}';
     }
 }

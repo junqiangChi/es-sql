@@ -31,9 +31,10 @@ import com.alibaba.druid.util.StringUtils;
 import com.alibaba.druid.util.Utils;
 import com.alibaba.druid.wall.WallFilter;
 import com.alibaba.druid.wall.WallProviderStatValue;
-import com.cjq.common.EsJdbcConfig;
+import com.cjq.common.ElasticsearchJdbcConfig;
 import com.cjq.domain.Client;
 import com.cjq.exception.JdbcUrlException;
+import org.apache.http.HttpHost;
 
 import javax.management.JMException;
 import javax.management.MBeanServer;
@@ -743,7 +744,7 @@ public class ElasticSearchDruidDataSource extends DruidDataSource {
         if (inited) {
             return;
         }
-        setUrl(properties.getProperty(EsJdbcConfig.ES_URL));
+        setUrl(properties.getProperty(ElasticsearchJdbcConfig.ES_URL.getName()));
         // bug fixed for dead lock, for issue #2980
         DruidDriver.getInstance();
 
@@ -938,6 +939,9 @@ public class ElasticSearchDruidDataSource extends DruidDataSource {
     }
 
     public boolean acceptUrl(String url) {
+        if (url == null) {
+            System.exit(1);
+        }
         return url.startsWith(CONNECT_STRING_PREFIX);
     }
 
@@ -961,11 +965,11 @@ public class ElasticSearchDruidDataSource extends DruidDataSource {
         long connectedNanos, initedNanos, validatedNanos;
 
         Map<String, Object> variables = initVariants
-                ? new HashMap<String, Object>()
-                : null;
+                                            ? new HashMap<String, Object>()
+                                            : null;
         Map<String, Object> globalVariables = initGlobalVariants
-                ? new HashMap<String, Object>()
-                : null;
+                                                  ? new HashMap<String, Object>()
+                                                  : null;
 
         createStartNanosUpdater.set(this, connectStartNanos);
         creatingCountUpdater.incrementAndGet(this);
@@ -1012,9 +1016,12 @@ public class ElasticSearchDruidDataSource extends DruidDataSource {
     }
 
     private void createClient(String url) {
-        this.client = new Client();
         String[] hostAndPortArray = url.split("/")[2].split(",");
-        client.init(hostAndPortArray, properties);
+        HttpHost[] httpHosts = Arrays.stream(hostAndPortArray).map(host -> {
+            String[] hostAndPort = host.split(":");
+            return new HttpHost(hostAndPort[0], Integer.parseInt(hostAndPort[1]), "http");
+        }).toArray(HttpHost[]::new);
+        this.client = new Client(httpHosts, properties);
     }
 
     private void createAndLogThread() {
@@ -1038,7 +1045,7 @@ public class ElasticSearchDruidDataSource extends DruidDataSource {
                 period = 1000;
             }
             destroySchedulerFuture = destroyScheduler.scheduleAtFixedRate(destroyTask, period, period,
-                    TimeUnit.MILLISECONDS);
+                TimeUnit.MILLISECONDS);
             initedLatch.countDown();
             return;
         }
@@ -1169,7 +1176,7 @@ public class ElasticSearchDruidDataSource extends DruidDataSource {
 
             if (driver.getMajorVersion() < 10) {
                 throw new SQLException("not support oracle driver " + driver.getMajorVersion() + "."
-                        + driver.getMinorVersion());
+                                           + driver.getMinorVersion());
             }
 
             if (driver.getMajorVersion() == 10 && isUseOracleImplicitCache()) {
@@ -1180,8 +1187,8 @@ public class ElasticSearchDruidDataSource extends DruidDataSource {
         } else if (dbType == DbType.db2) {
             db2ValidationQueryCheck();
         } else if (dbType == DbType.mysql
-                || JdbcUtils.MYSQL_DRIVER.equals(this.driverClass)
-                || JdbcUtils.MYSQL_DRIVER_6.equals(this.driverClass)
+                       || JdbcUtils.MYSQL_DRIVER.equals(this.driverClass)
+                       || JdbcUtils.MYSQL_DRIVER_6.equals(this.driverClass)
         ) {
             isMySql = true;
         }
@@ -1215,7 +1222,7 @@ public class ElasticSearchDruidDataSource extends DruidDataSource {
         if (query instanceof SQLSelectQueryBlock) {
             if (((SQLSelectQueryBlock) query).getFrom() == null) {
                 LOG.error("invalid oracle validationQuery. " + validationQuery + ", may should be : " + validationQuery
-                        + " FROM DUAL");
+                              + " FROM DUAL");
             }
         }
     }
@@ -1244,7 +1251,7 @@ public class ElasticSearchDruidDataSource extends DruidDataSource {
         if (query instanceof SQLSelectQueryBlock) {
             if (((SQLSelectQueryBlock) query).getFrom() == null) {
                 LOG.error("invalid db2 validationQuery. " + validationQuery + ", may should be : " + validationQuery
-                        + " FROM SYSDUMMY");
+                              + " FROM SYSDUMMY");
             }
         }
     }
@@ -1413,7 +1420,7 @@ public class ElasticSearchDruidDataSource extends DruidDataSource {
                         && notEmptyWaitThreadCount >= maxWaitThreadCount) {
                     connectErrorCountUpdater.incrementAndGet(this);
                     throw new SQLException("maxWaitThreadCount " + maxWaitThreadCount + ", current wait Thread count "
-                            + lock.getQueueLength());
+                                               + lock.getQueueLength());
                 }
 
                 if (onFatalError
@@ -1423,24 +1430,24 @@ public class ElasticSearchDruidDataSource extends DruidDataSource {
 
                     StringBuilder errorMsg = new StringBuilder();
                     errorMsg.append("onFatalError, activeCount ")
-                            .append(activeCount)
-                            .append(", onFatalErrorMaxActive ")
-                            .append(onFatalErrorMaxActive);
+                        .append(activeCount)
+                        .append(", onFatalErrorMaxActive ")
+                        .append(onFatalErrorMaxActive);
 
                     if (lastFatalErrorTimeMillis > 0) {
                         errorMsg.append(", time '")
-                                .append(StringUtils.formatDateTime19(
-                                        lastFatalErrorTimeMillis, TimeZone.getDefault()))
-                                .append("'");
+                            .append(StringUtils.formatDateTime19(
+                                lastFatalErrorTimeMillis, TimeZone.getDefault()))
+                            .append("'");
                     }
 
                     if (lastFatalErrorSql != null) {
                         errorMsg.append(", sql \n")
-                                .append(lastFatalErrorSql);
+                            .append(lastFatalErrorSql);
                     }
 
                     throw new SQLException(
-                            errorMsg.toString(), lastFatalError);
+                        errorMsg.toString(), lastFatalError);
                 }
 
                 connectCount++;
@@ -1488,10 +1495,10 @@ public class ElasticSearchDruidDataSource extends DruidDataSource {
 
             StringBuilder buf = new StringBuilder(128);
             buf.append("wait millis ")//
-                    .append(waitNanos / (1000 * 1000))//
-                    .append(", active ").append(activeCount)//
-                    .append(", maxActive ").append(maxActive)//
-                    .append(", creating ").append(creatingCount)//
+                .append(waitNanos / (1000 * 1000))//
+                .append(", active ").append(activeCount)//
+                .append(", maxActive ").append(maxActive)//
+                .append(", creating ").append(creatingCount)//
             ;
             if (creatingCount > 0 && createStartNanos > 0) {
                 long createElapseMillis = (System.nanoTime() - createStartNanos) / (1000 * 1000);
@@ -1814,7 +1821,7 @@ public class ElasticSearchDruidDataSource extends DruidDataSource {
                 @Override
                 public Object run() {
                     ObjectName objectName = DruidDataSourceStatManager.addDataSource(ElasticSearchDruidDataSource.this,
-                            ElasticSearchDruidDataSource.this.name);
+                        ElasticSearchDruidDataSource.this.name);
 
                     ElasticSearchDruidDataSource.this.setObjectName(objectName);
                     ElasticSearchDruidDataSource.this.mbeanRegistered = true;
@@ -2449,7 +2456,7 @@ public class ElasticSearchDruidDataSource extends DruidDataSource {
                     connection = createPhysicalConnection();
                 } catch (SQLException e) {
                     LOG.error("create connection SQLException, url: " + jdbcUrl + ", errorCode " + e.getErrorCode()
-                            + ", state " + e.getSQLState(), e);
+                                  + ", state " + e.getSQLState(), e);
 
                     errorCount++;
 
@@ -2639,7 +2646,7 @@ public class ElasticSearchDruidDataSource extends DruidDataSource {
                     }
 
                     buf.append("ownerThread current state is " + pooledConnection.getOwnerThread().getState()
-                            + ", current stackTrace\n");
+                                   + ", current stackTrace\n");
                     trace = pooledConnection.getOwnerThread().getStackTrace();
                     for (int i = 0; i < trace.length; i++) {
                         buf.append("\tat ");

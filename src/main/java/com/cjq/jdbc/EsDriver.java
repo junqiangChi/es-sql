@@ -1,10 +1,7 @@
 package com.cjq.jdbc;
 
-import com.alibaba.druid.pool.DruidDataSource;
-import org.antlr.v4.runtime.CharStream;
-import org.antlr.v4.runtime.CodePointCharStream;
-import org.antlr.v4.runtime.IntStream;
-import org.antlr.v4.runtime.misc.Interval;
+import com.cjq.exception.EsSqlParseException;
+import com.cjq.exception.JdbcUrlException;
 
 import java.sql.*;
 import java.util.Properties;
@@ -20,32 +17,30 @@ public class EsDriver implements Driver {
         load();
     }
 
-    private DruidDataSource dds;
-
     public static synchronized void load() {
         if (!registered) {
             registered = true;
             try {
                 DriverManager.registerDriver(INSTANCE);
             } catch (SQLException throwable) {
-                throwable.printStackTrace();
+                throw new JdbcUrlException(throwable);
             }
         }
     }
 
     @Override
     public Connection connect(String url, Properties info) throws SQLException {
-        if (!acceptsURL(url)) {
-            return null;
+        if (acceptsURL(url)) {
+            return new EsConnection(url, info);
         }
-
-        String[] parts = url.split(":", 3);
-
-        return null;
+        throw new EsSqlParseException("invalid url: " + url);
     }
 
     @Override
     public boolean acceptsURL(String url) throws SQLException {
+        if (url == null) {
+            System.exit(1);
+        }
         return url.startsWith(CONNECT_STRING_PREFIX);
     }
 

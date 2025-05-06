@@ -1,18 +1,14 @@
 package com.cjq.jdbc;
 
-import com.alibaba.druid.pool.DruidDataSource;
-
 import java.sql.*;
 
 public class EsStatement implements Statement {
-    private final Connection connection;
+    private final EsConnection connection;
     private PreparedStatement ps;
-    private DruidDataSource dataSource;
     private ResultSet resultSet;
 
-    public EsStatement(Connection connection, DruidDataSource dataSource) {
+    public EsStatement(EsConnection connection) {
         this.connection = connection;
-        this.dataSource = dataSource;
     }
 
     public void setResultSet(ResultSet resultSet) {
@@ -22,18 +18,18 @@ public class EsStatement implements Statement {
     @Override
     public ResultSet executeQuery(String sql) throws SQLException {
         ps = connection.prepareStatement(sql);
-        setResultSet(ps.getResultSet());
+        setResultSet(ps.executeQuery());
         return getResultSet();
     }
 
     @Override
-    public int executeUpdate(String sql) throws SQLException {
+    public int executeUpdate(String sql) {
         return 0;
     }
 
     @Override
     public void close() throws SQLException {
-
+        resultSet.close();
     }
 
     @Override
@@ -93,12 +89,12 @@ public class EsStatement implements Statement {
 
     @Override
     public boolean execute(String sql) throws SQLException {
-        return false;
+        return connection.prepareStatement(sql).execute();
     }
 
     @Override
     public ResultSet getResultSet() throws SQLException {
-        return null;
+        return this.resultSet;
     }
 
     @Override

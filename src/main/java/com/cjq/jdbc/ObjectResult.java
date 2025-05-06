@@ -1,5 +1,6 @@
 package com.cjq.jdbc;
 
+
 import java.util.List;
 
 public class ObjectResult {

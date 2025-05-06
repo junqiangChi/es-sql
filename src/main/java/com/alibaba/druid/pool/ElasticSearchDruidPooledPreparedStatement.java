@@ -3,13 +3,14 @@ package com.alibaba.druid.pool;
 
 import com.cjq.domain.Client;
 import com.cjq.domain.EqlParserDriver;
-import com.cjq.jdbc.ObjectResult;
+import com.cjq.exception.EsSqlParseException;
 import com.cjq.jdbc.HandleResult;
+import com.cjq.jdbc.ObjectResult;
 import com.cjq.plan.logical.LogicalPlan;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.*;
+import java.util.Properties;
 
 /**
  * Created by allwefantasy on 8/30/16.
@@ -47,7 +48,7 @@ public class ElasticSearchDruidPooledPreparedStatement extends DruidPooledPrepar
             addResultSetTrace(poolableResultSet);
             return poolableResultSet;
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new EsSqlParseException(e);
         } finally {
             connection.close();
         }
@@ -64,22 +65,6 @@ public class ElasticSearchDruidPooledPreparedStatement extends DruidPooledPrepar
         // oracleSetRowPrefetch();
 
         conn.beforeExecute();
-    /*try {
-      ObjectResult extractor = getObjectResult(true, false, true);
-      List<String> headers = extractor.getHeaders();
-      List<List<Object>> lines = extractor.getLines();
-
-      ResultSet rs = new ElasticSearchResultSet(this, headers, lines);
-      ((ElasticSearchPreparedStatement) getRawPreparedStatement()).setResults(rs);
-
-      return true;
-    } catch (Throwable t) {
-      errorCheck(t);
-
-      throw checkException(t);
-    } finally {
-      conn.afterExecute();
-    }*/
         return true;
     }
 

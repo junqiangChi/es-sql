@@ -28,13 +28,11 @@ public class Condition {
                 this.opera = OperatorSymbol.LTE;
                 break;
             case "<>":
+            case "NOT":
                 this.opera = OperatorSymbol.N;
                 break;
             case "LIKE":
                 this.opera = OperatorSymbol.LIKE;
-                break;
-            case "NOT":
-                this.opera = OperatorSymbol.N;
                 break;
             case "NOT LIKE":
                 this.opera = OperatorSymbol.NLIKE;
@@ -101,37 +99,13 @@ public class Condition {
         }
     }
 
-/*        public void getOperatorSymbol() {
-            switch (opera) {
-                case EQ:
-                    return;
-                case GT:
-                    return;
-                case LT:
-                    return;
-                case GTE:
-                    return;
-                case LTE:
-                    return;
-                case N:
-                    return;
-                case IS:
-                    return;
-
-                case ISN:
-                    return;
-                default:
-                    throw new EsSqlParseException(opera + " is err!");
-            }
-        }*/
-
-
-    public OperatorSymbol getOpera() {
-        return opera;
-    }
-
-    public void setOpera(OperatorSymbol opera) {
-        this.opera = opera;
+    @Override
+    public String toString() {
+        return "Condition{" +
+                "field='" + field + '\'' +
+                ", keyword='" + opera + '\'' +
+                ", text='" + value + '\'' +
+                '}';
     }
 
     public String getField() {
@@ -142,20 +116,19 @@ public class Condition {
         this.field = field;
     }
 
+    public OperatorSymbol getOpera() {
+        return opera;
+    }
+
+    public void setOpera(OperatorSymbol opera) {
+        this.opera = opera;
+    }
+
     public Value getValue() {
         return value;
     }
 
     public void setValue(Value value) {
         this.value = value;
-    }
-
-    @Override
-    public String toString() {
-        return "Condition{" +
-                "field='" + field + '\'' +
-                ", keyword='" + opera + '\'' +
-                ", text='" + value + '\'' +
-                '}';
     }
 }

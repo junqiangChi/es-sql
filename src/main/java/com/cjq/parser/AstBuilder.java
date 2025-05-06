@@ -3,15 +3,22 @@ package com.cjq.parser;
 import com.cjq.common.WhereOpr;
 import com.cjq.exception.EsSqlParseException;
 import com.cjq.plan.logical.*;
-import org.antlr.v4.runtime.Token;
+import org.antlr.v4.runtime.tree.ErrorNodeImpl;
 import org.antlr.v4.runtime.tree.ParseTree;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
 
 public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
     @Override
     public LogicalPlan visitSingleStatement(SqlBaseParser.SingleStatementContext ctx) {
+        List<ParseTree> children = ctx.children;
+        for (ParseTree child : children) {
+            if (child instanceof ErrorNodeImpl) {
+                throw new EsSqlParseException("Single statement error: " + child.getText());
+            }
+        }
         return visit(ctx.statement());
     }
 
@@ -19,20 +26,14 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
     public LogicalPlan visitQuery(SqlBaseParser.QueryContext ctx) {
         LogicalPlan query = visit(ctx.queryTerm());
         // 参考spark源码
-        LogicalPlan limit = query.optionalMap(ctx, (queryContext, executePlan) -> {
-            if (!queryContext.queryOrganization().expression().isEmpty()) {
+        LogicalPlan queryOrganization = query.optionalMap(ctx, (queryContext, executePlan) -> {
+            if (queryContext.queryOrganization() != null) {
                 executePlan = visit(queryContext.queryOrganization());
             }
             return executePlan;
         });
-        query.setPlan(limit);
+        query.setPlan(queryOrganization);
         return query;
-    }
-
-
-    @Override
-    public LogicalPlan visitQueryTermDefault(SqlBaseParser.QueryTermDefaultContext ctx) {
-        return visit(ctx.queryPrimary());
     }
 
     @Override
@@ -41,23 +42,39 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
     }
 
     @Override
-    public LogicalPlan visitIntervalLiteral(SqlBaseParser.IntervalLiteralContext ctx) {
-        return visit(ctx);
-    }
-
-    @Override
     public LogicalPlan visitRegularQuerySpecification(SqlBaseParser.RegularQuerySpecificationContext ctx) {
         SqlBaseParser.SelectClauseContext selectClauseContext = ctx.selectClause();
         From from = (From) visit(ctx.fromClause());
-        List<Field> fields = selectClauseContext.namedExpressionSeq().namedExpression().stream()
-                .map(f -> f.errorCapturingIdentifier() != null ? new Field(f.expression().getText(),
-                        f.errorCapturingIdentifier().getText(), isConstant(f)) :
-                        new Field(f.expression().getText(), null, isConstant(f))).collect(Collectors.toList());
+        List<Field> fields = selectClauseContext.namedExpressionSeq().namedExpression().stream().map(f -> {
+            if (f.errorCapturingIdentifier() != null) {
+                if (isConstant(f)) {
+                    return new Field(null, f.errorCapturingIdentifier().getText(), true, ((Value) visit(f.expression())).getText());
+                } else {
+                    return new Field(f.expression().getText(), f.errorCapturingIdentifier().getText(), false, null);
+                }
+            } else {
+                return new Field(f.expression().getText(), null, false, null);
+            }
+        }).collect(Collectors.toList());
         SqlBaseParser.WhereClauseContext whereClauseContext = ctx.whereClause();
-        LogicalPlan where = visit(whereClauseContext);
+        LogicalPlan where = whereClauseContext == null ? null : visit(whereClauseContext);
         return new Query(new Select(fields), from, (Where) where);
     }
 
+    @Override
+    public LogicalPlan visitValueExpressionDefault(SqlBaseParser.ValueExpressionDefaultContext ctx) {
+        if (ctx.primaryExpression() instanceof SqlBaseParser.ColumnReferenceContext) {
+            return visit(ctx.primaryExpression());
+        } else if (ctx.primaryExpression() instanceof SqlBaseParser.ConstantDefaultContext) {
+            SqlBaseParser.ConstantDefaultContext constantDefaultContext = (SqlBaseParser.ConstantDefaultContext) ctx.primaryExpression();
+            if (constantDefaultContext.constant() instanceof SqlBaseParser.StringLiteralContext) {
+                return visitStringLiteral((SqlBaseParser.StringLiteralContext) constantDefaultContext.constant());
+            } else if (constantDefaultContext.constant() instanceof SqlBaseParser.NumericLiteralContext) {
+                return visitNumericLiteral((SqlBaseParser.NumericLiteralContext) constantDefaultContext.constant());
+            }
+        }
+        return visit(ctx);
+    }
 
     /**
      * 处理表名及别名
@@ -73,16 +90,53 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
     }
 
     @Override
-
     public LogicalPlan visitNumericLiteral(SqlBaseParser.NumericLiteralContext ctx) {
+        if (ctx.number() instanceof SqlBaseParser.IntegerLiteralContext) {
+            return visitIntegerLiteral((SqlBaseParser.IntegerLiteralContext) ctx.number());
+        } else if (ctx.number() instanceof SqlBaseParser.DecimalLiteralContext) {
+            return visitDecimalLiteral((SqlBaseParser.DecimalLiteralContext) ctx.number());
+        } else if (ctx.number() instanceof SqlBaseParser.FloatLiteralContext) {
+            return visitFloatLiteral((SqlBaseParser.FloatLiteralContext) ctx.number());
+        } else if (ctx.number() instanceof SqlBaseParser.ExponentLiteralContext) {
+            return visitExponentLiteral((SqlBaseParser.ExponentLiteralContext) ctx.number());
+        } else {
+            return visitDoubleLiteral((SqlBaseParser.DoubleLiteralContext) ctx.number());
+        }
+    }
+
+    @Override
+    public LogicalPlan visitIntegerLiteral(SqlBaseParser.IntegerLiteralContext ctx) {
+        if (ctx.getText().contains(".")) {
+            return new Value(Double.parseDouble(ctx.getText()));
+        } else {
+            return new Value(Integer.parseInt(ctx.getText()));
+        }
+    }
+
+    @Override
+    public LogicalPlan visitFloatLiteral(SqlBaseParser.FloatLiteralContext ctx) {
+        return new Value(Float.parseFloat(ctx.getText()));
+    }
+
+    @Override
+    public LogicalPlan visitExponentLiteral(SqlBaseParser.ExponentLiteralContext ctx) {
+        return new Value(new BigDecimal(ctx.getText()));
+    }
+
+    @Override
+    public LogicalPlan visitDecimalLiteral(SqlBaseParser.DecimalLiteralContext ctx) {
+        return new Value(Double.parseDouble(ctx.getText()));
+    }
+
+    @Override
+    public LogicalPlan visitDoubleLiteral(SqlBaseParser.DoubleLiteralContext ctx) {
         return new Value(Double.parseDouble(ctx.getText()));
     }
 
     @Override
     public LogicalPlan visitComparison(SqlBaseParser.ComparisonContext ctx) {
-        List<SqlBaseParser.ValueExpressionDefaultContext> valueExpressionDefaultContexts =
-                ctx.valueExpression().stream()
-                        .map(f -> (SqlBaseParser.ValueExpressionDefaultContext) f).collect(Collectors.toList());
+        List<SqlBaseParser.ValueExpressionDefaultContext> valueExpressionDefaultContexts = ctx.valueExpression()
+                .stream().map(f -> (SqlBaseParser.ValueExpressionDefaultContext) f).collect(Collectors.toList());
         SqlBaseParser.ValueExpressionDefaultContext left = valueExpressionDefaultContexts.get(0);
         SqlBaseParser.ValueExpressionDefaultContext right = valueExpressionDefaultContexts.get(1);
         Condition condition = new Condition(left.primaryExpression().getText(), ctx.comparisonOperator().getText(),
@@ -100,7 +154,7 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
             String operatorSymbol = getOperatorSymbol(predicate);
             Value value = null;
             List<SqlBaseParser.ExpressionContext> expression = predicate.expression();
-            if (expression != null && expression.size() > 0) {
+            if (expression != null && !expression.isEmpty()) {
                 for (SqlBaseParser.ExpressionContext expressionContext : expression) {
                     if (value == null) {
                         value = (Value) visit(expressionContext);
@@ -158,14 +212,18 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
     }
 
     @Override
-    public LogicalPlan visitStringLit(SqlBaseParser.StringLitContext ctx) {
-        return visit(ctx.STRING_LITERAL());
+    public LogicalPlan visitSortItem(SqlBaseParser.SortItemContext ctx) {
+        return new Sort(ctx.expression().getText(), ctx.getChildCount() > 1 ? Sort.OrderType.valueOf(ctx.getChild(1).getText().toUpperCase()) : Sort.OrderType.ASC);
     }
-
 
     @Override
     public LogicalPlan visitQueryOrganization(SqlBaseParser.QueryOrganizationContext ctx) {
-        return ctx.limit != null ? new Limit(Integer.parseInt(ctx.limit.getText())) : visit(ctx);
+        OrderBy orderBy = new OrderBy();
+        List<LogicalPlan> sorts = ctx.sortItem().stream().map(this::visit).collect(Collectors.toList());
+        orderBy.setSorts(sorts);
+        LogicalPlan limit = ctx.limit != null ? new Limit(Integer.parseInt(ctx.limit.getText())) : null;
+        orderBy.setPlan(limit);
+        return orderBy;
     }
 
     /**
@@ -180,10 +238,8 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
             SqlBaseParser.PredicatedContext predicatedContext = (SqlBaseParser.PredicatedContext) booleanExpression;
             SqlBaseParser.ValueExpressionContext valueExpression = predicatedContext.valueExpression();
             if (valueExpression instanceof SqlBaseParser.ValueExpressionDefaultContext) {
-                SqlBaseParser.ValueExpressionDefaultContext valueExpressionDefaultContext =
-                        (SqlBaseParser.ValueExpressionDefaultContext) valueExpression;
-                SqlBaseParser.PrimaryExpressionContext primaryExpression =
-                        valueExpressionDefaultContext.primaryExpression();
+                SqlBaseParser.ValueExpressionDefaultContext valueExpressionDefaultContext = (SqlBaseParser.ValueExpressionDefaultContext) valueExpression;
+                SqlBaseParser.PrimaryExpressionContext primaryExpression = valueExpressionDefaultContext.primaryExpression();
                 return primaryExpression instanceof SqlBaseParser.ConstantDefaultContext;
             }
         }
@@ -222,97 +278,7 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
                 return "BETWEEN";
             }
         } else {
-            throw new EsSqlParseException("not supported syntax： " + predicate.getText());
+            throw new EsSqlParseException("not supported syntax：" + predicate.getText());
         }
-    }
-
-    /**
-     * v1.0 使用循环的方式收集wheres
-     * 有点蠢，自己一层层往下解析的，应该重写对应的方法，来一层层提取
-     * 过时
-     *
-     * @param logicalBinaryContext A parent ParserContext is {@link SqlBaseParser.LogicalBinaryContext}
-     * @param where                A {@link Where} in {@link Query}
-     * @return A where {@link Where} in {@link Query}
-     */
-    @Deprecated
-    private Where setWhere(SqlBaseParser.LogicalBinaryContext logicalBinaryContext, Where where) {
-        SqlBaseParser.BooleanExpressionContext left = logicalBinaryContext.left;
-        SqlBaseParser.BooleanExpressionContext right = logicalBinaryContext.right;
-        Token operator = logicalBinaryContext.operator;
-        while (left instanceof SqlBaseParser.LogicalBinaryContext) {
-            if (where.getOpr() == null) {
-                Condition condition = getCondition((SqlBaseParser.PredicatedContext) right);
-                where.setCondition(condition);
-                where.setOpr(WhereOpr.valueOf(operator.getText()));
-            } else {
-                Where nextWhere = new Where();
-                Condition condition = getCondition((SqlBaseParser.PredicatedContext) right);
-                nextWhere.setCondition(condition);
-                nextWhere.setOpr(WhereOpr.valueOf(operator.getText()));
-                where.setNextWhere(nextWhere);
-            }
-            right = ((SqlBaseParser.LogicalBinaryContext) left).right;
-            operator = ((SqlBaseParser.LogicalBinaryContext) left).operator;
-            left = ((SqlBaseParser.LogicalBinaryContext) left).left;
-        }
-        Where leftWhere = new Where(getCondition((SqlBaseParser.PredicatedContext) left),
-                WhereOpr.valueOf(operator.getText()), null);
-        Where rightWhere = new Where(getCondition((SqlBaseParser.PredicatedContext) right),
-                WhereOpr.valueOf(operator.getText()), leftWhere);
-        where.setNextWhere(rightWhere);
-        return where;
-    }
-
-    /**
-     * v1.1 使用递归的方式收集wheres
-     * 把v1.0的循环改成了递归，有点东西，但不多
-     * 过时
-     *
-     * @param logicalBinaryContext A parent ParserContext {@link SqlBaseParser.LogicalBinaryContext}
-     * @param where                A {@link Where} in {@link Query}
-     * @return A where {@link Where} in {@link Query}
-     */
-    @Deprecated
-    private Where setWhereWithRecursive(SqlBaseParser.LogicalBinaryContext logicalBinaryContext, Where where) {
-        SqlBaseParser.BooleanExpressionContext left = logicalBinaryContext.left;
-        SqlBaseParser.BooleanExpressionContext right = logicalBinaryContext.right;
-        Token operator = logicalBinaryContext.operator;
-        if (where.getOpr() == null) {
-            Condition condition = getCondition((SqlBaseParser.PredicatedContext) right);
-            where.setCondition(condition);
-            where.setOpr(WhereOpr.valueOf(operator.getText()));
-        } else {
-            Where nextWhere = new Where();
-            Condition condition = getCondition((SqlBaseParser.PredicatedContext) right);
-            nextWhere.setCondition(condition);
-            nextWhere.setOpr(WhereOpr.valueOf(operator.getText()));
-            where.setNextWhere(nextWhere);
-        }
-        if (left instanceof SqlBaseParser.LogicalBinaryContext) {
-            return setWhereWithRecursive((SqlBaseParser.LogicalBinaryContext) left, where);
-        }
-        Where leftWhere = new Where(getCondition((SqlBaseParser.PredicatedContext) left),
-                WhereOpr.valueOf(operator.getText()), null);
-        Where rightWhere = new Where(getCondition((SqlBaseParser.PredicatedContext) right),
-                WhereOpr.valueOf(operator.getText()), leftWhere);
-        where.setNextWhere(rightWhere);
-        return where;
-    }
-
-    /**
-     * v1.0 笨B写法，自己解析的
-     *
-     * @param predicatedContext
-     * @return
-     */
-    @Deprecated
-    private Condition getCondition(SqlBaseParser.PredicatedContext predicatedContext) {
-        SqlBaseParser.ValueExpressionDefaultContext childLeft =
-                (SqlBaseParser.ValueExpressionDefaultContext) predicatedContext.valueExpression().getChild(0);
-        ParseTree childMid = predicatedContext.valueExpression().getChild(1);
-        SqlBaseParser.ValueExpressionDefaultContext childRight =
-                (SqlBaseParser.ValueExpressionDefaultContext) predicatedContext.valueExpression().getChild(2);
-        return new Condition(childLeft.primaryExpression().getText(), childMid.getText(), new Value(childRight.getText()));
     }
 }

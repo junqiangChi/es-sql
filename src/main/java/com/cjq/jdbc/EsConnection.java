@@ -1,29 +1,66 @@
 package com.cjq.jdbc;
 
-import com.alibaba.druid.pool.DruidDataSource;
+import com.cjq.domain.Client;
+import com.cjq.domain.EqlParserDriver;
+import org.apache.http.HttpHost;
 
 import java.sql.*;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Executor;
 
 public class EsConnection implements Connection {
-    private DruidDataSource dataSource;
-    private Connection connection;
+    private EqlParserDriver eqlParserDriver;
+    private Properties properties;
+    private Client client;
 
-    public EsConnection(DruidDataSource dataSource, Connection connection) {
-        this.dataSource = dataSource;
-        this.connection = connection;
+    public EsConnection(String url, Properties properties) {
+        this.properties = properties;
+        this.eqlParserDriver = new EqlParserDriver();
+        createClient(url);
+    }
+
+    private void createClient(String url) {
+        handlerUrlProperties(url);
+        String urlPrefixPart = url.split("\\?")[0];
+        String[] hostAndPortArray = urlPrefixPart.split("/")[2].split(",");
+        HttpHost[] httpHosts = Arrays.stream(hostAndPortArray).map(host -> {
+            String[] hostAndPort = host.split(":");
+            return new HttpHost(hostAndPort[0], Integer.parseInt(hostAndPort[1]), "http");
+        }).toArray(HttpHost[]::new);
+        this.client = new Client(httpHosts, properties);
+    }
+
+    private void handlerUrlProperties(String url) {
+        if (url.split("\\?").length > 1) {
+            String urlProperties = url.split("\\?")[1];
+            for (String property : urlProperties.split("&")) {
+                properties.setProperty(property.split("=")[0], property.split("=")[1]);
+            }
+        }
+    }
+
+    public EqlParserDriver getEqlParserDriver() {
+        return eqlParserDriver;
+    }
+
+    public Properties getProperties() {
+        return properties;
+    }
+
+    public Client getClient() {
+        return client;
     }
 
     @Override
     public Statement createStatement() throws SQLException {
-        return new EsStatement(connection, dataSource);
+        return new EsStatement(this);
     }
 
     @Override
     public PreparedStatement prepareStatement(String sql) throws SQLException {
-        return null;
+        return new EsPreparedStatement(this, sql);
     }
 
 
@@ -59,12 +96,14 @@ public class EsConnection implements Connection {
 
     @Override
     public void close() throws SQLException {
-
+        if (client != null && !client.isClose()) {
+            client.close();
+        }
     }
 
     @Override
-    public boolean isClosed() throws SQLException {
-        return false;
+    public boolean isClosed() {
+        return client.isClose();
     }
 
     @Override

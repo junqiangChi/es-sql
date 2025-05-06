@@ -1,14 +1,25 @@
 package com.cjq.plan.logical;
 
+
 public class Query extends LogicalPlan {
     private Select select;
     private From from;
     private Where where;
+    private Query subQuery;
 
     public Query(Select select, From from, Where where) {
         this.select = select;
         this.from = from;
         this.where = where;
+    }
+
+    @Override
+    public String toString() {
+        return "Query{" +
+                "select=" + select +
+                ", from=" + from +
+                ", where=" + where +
+                '}';
     }
 
     public Select getSelect() {
@@ -35,12 +46,11 @@ public class Query extends LogicalPlan {
         this.where = where;
     }
 
-    @Override
-    public String toString() {
-        return "Query{" +
-                "select=" + select +
-                ", from=" + from +
-                ", where=" + where +
-                '}';
+    public Query getSubQuery() {
+        return subQuery;
+    }
+
+    public void setSubQuery(Query subQuery) {
+        this.subQuery = subQuery;
     }
 }

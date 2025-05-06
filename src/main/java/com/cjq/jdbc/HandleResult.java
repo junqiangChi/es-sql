@@ -1,14 +1,19 @@
 package com.cjq.jdbc;
 
+import com.cjq.action.BaseAction;
+import com.cjq.action.DefaultQueryAction;
 import com.cjq.common.Constant;
-import com.cjq.common.EsJdbcConfig;
+import com.cjq.common.ElasticsearchJdbcConfig;
 import com.cjq.domain.Client;
-import com.cjq.domain.RequestExecutor;
 import com.cjq.exception.EsSqlParseException;
 import com.cjq.plan.logical.Field;
 import com.cjq.plan.logical.LogicalPlan;
 import com.cjq.plan.logical.Query;
+import org.apache.commons.lang3.StringUtils;
+import org.elasticsearch.action.ActionRequest;
+import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.document.DocumentField;
 import org.elasticsearch.search.SearchHit;
@@ -34,43 +39,66 @@ public class HandleResult {
     }
 
     private void setDocInclude() {
-        this.isIncludeIndex = Boolean.parseBoolean(properties.getProperty(EsJdbcConfig.INCLUDE_INDEX));
-        this.isIncludeDocID = Boolean.parseBoolean(properties.getProperty(EsJdbcConfig.INCLUDE_DOC_ID));
-        this.isIncludeType = Boolean.parseBoolean(properties.getProperty(EsJdbcConfig.INCLUDE_TYPE));
-        this.isIncludeScore = Boolean.parseBoolean(properties.getProperty(EsJdbcConfig.INCLUDE_SCORE));
+        this.isIncludeIndex = Boolean.parseBoolean(properties.getProperty(ElasticsearchJdbcConfig.INCLUDE_INDEX.getName(),
+                ElasticsearchJdbcConfig.INCLUDE_INDEX.getDefaultValue()));
+        this.isIncludeDocID = Boolean.parseBoolean(properties.getProperty(ElasticsearchJdbcConfig.INCLUDE_DOC_ID.getName(),
+                ElasticsearchJdbcConfig.INCLUDE_DOC_ID.getDefaultValue()));
+        this.isIncludeType = Boolean.parseBoolean(properties.getProperty(ElasticsearchJdbcConfig.INCLUDE_TYPE.getName(),
+                ElasticsearchJdbcConfig.INCLUDE_TYPE.getDefaultValue()));
+        this.isIncludeScore = Boolean.parseBoolean(properties.getProperty(ElasticsearchJdbcConfig.INCLUDE_SCORE.getName(),
+                ElasticsearchJdbcConfig.INCLUDE_SCORE.getDefaultValue()));
     }
 
     public ObjectResult getObjectResultSet() throws IOException {
-        if (plan instanceof Query) {
-            Query query = (Query) plan;
-            RestHighLevelClient restHighLevelClient = client.getClient();
-            return getObjectResult(query, restHighLevelClient);
-        }
-        throw new EsSqlParseException("This sql is not query type: " + plan);
+        BaseAction action = getAction();
+        ActionRequest actionRequest = action.buildRequest(this.plan);
+        return getObjectResult(actionRequest, this.client.getClient());
     }
 
-    private ObjectResult getObjectResult(Query query, RestHighLevelClient restHighLevelClient) throws IOException {
-        RequestExecutor handleRequest = new RequestExecutor();
-        SearchResponse searchResponse = handleRequest.search(query, restHighLevelClient);
+    private BaseAction getAction() {
+        if (plan instanceof Query) {
+            return new DefaultQueryAction();
+        }
+        throw new EsSqlParseException("Unsupported sql type!");
+    }
+
+    private ObjectResult getObjectResult(ActionRequest request, RestHighLevelClient restHighLevelClient) throws IOException {
+        if (plan instanceof Query) {
+            Query query = (Query) plan;
+            SearchResponse searchResponse = restHighLevelClient.search((SearchRequest) request, RequestOptions.DEFAULT);
+            return handleSearchResponse(query, searchResponse);
+        }
+        throw new EsSqlParseException("Unsupported sql type!");
+    }
+
+    private ObjectResult handleSearchResponse(Query query, SearchResponse searchResponse) {
         SearchHit[] hits = searchResponse.getHits().getHits();
         List<Field> fields = query.getSelect().getFields();
         boolean flat = fields.size() == 1 && fields.get(0).getField().equals("*");
         List<Map<String, Object>> docsAsMap = new ArrayList<>();
         Set<String> hitFieldNames = new HashSet<>();
-        List<String> header = createHeadersAndFillDocsMap(flat, hits, docsAsMap, hitFieldNames);
+        List<String> header = createHeadersAndFillDocsMap(query, flat, hits, docsAsMap, hitFieldNames);
+        Map<String, String> fieldNameMap = new HashMap<>();
+        if (fields.size() > 1 || !fields.get(0).getField().equals("*")) {
+            for (Field field : fields) {
+                if (!field.isConstant()) {
+                    fieldNameMap.put(field.getField(), field.getAlias());
+                }
+            }
+        }
+        List<Field> constantFields = fields.stream().filter(Field::isConstant).collect(Collectors.toList());
         List<List<Object>> rows = createLinesFromDocs(flat, docsAsMap, header, hitFieldNames);
+        header = header.stream().map(f -> StringUtils.isNotBlank(fieldNameMap.get(f)) ? fieldNameMap.get(f) : f)
+                .collect(Collectors.toList());
+        setConstantField(constantFields, header, rows);
         return new ObjectResult(header, rows);
     }
 
-    private List<String> createHeadersAndFillDocsMap(boolean flat, SearchHit[] hits, List<Map<String, Object>> docsAsMap, Set<String> hitFieldNames) {
+
+    private List<String> createHeadersAndFillDocsMap(Query query, boolean flat, SearchHit[] hits,
+                                                     List<Map<String, Object>> docsAsMap, Set<String> hitFieldNames) {
         Set<String> headers = new LinkedHashSet<>();
-        List<String> fieldNames;
-        Query query = this.plan instanceof Query ? (Query) plan : null;
-        if (this.plan instanceof Query) {
-            fieldNames = new ArrayList<>((query.getSelect().getFields().stream().map(Field::getField).collect(Collectors.toList())));
-        } else {
-            return null;
-        }
+        List<String> fieldNames = query.getSelect().getFields().stream().map(Field::getField).collect(Collectors.toList());
         String indexAlias = query.getFrom().getAlias();
         for (SearchHit hit : hits) {
             Map<String, Object> doc = hit.getSourceAsMap() != null ? hit.getSourceAsMap() : new HashMap<>();
@@ -84,7 +112,7 @@ public class HandleResult {
                 doc.put(Constant._ID, hit.getId());
             }
             if (isIncludeIndex) {
-                if (!"".equals(indexAlias) ) {
+                if (StringUtils.isNotBlank(indexAlias)) {
                     doc.put(Constant._INDEX, indexAlias);
                 } else {
                     doc.put(Constant._INDEX, hit.getIndex());
@@ -115,7 +143,8 @@ public class HandleResult {
     }
 
 
-    private List<List<Object>> createLinesFromDocs(boolean flat, List<Map<String, Object>> docsAsMap, List<String> headers, Set<String> hitFieldNames) {
+    private List<List<Object>> createLinesFromDocs(boolean flat, List<Map<String, Object>> docsAsMap,
+                                                   List<String> headers, Set<String> hitFieldNames) {
         List<List<Object>> objectLines = new ArrayList<>();
         for (Map<String, Object> doc : docsAsMap) {
             List<Object> lines = new ArrayList<>();
@@ -169,4 +198,14 @@ public class HandleResult {
         }
     }
 
+    private void setConstantField(List<Field> constantFields, List<String> headers, List<List<Object>> values) {
+        if (constantFields != null) {
+            for (Field constantField : constantFields) {
+                headers.add(constantField.getAlias());
+                for (List<Object> value : values) {
+                    value.add(constantField.getConstantValue());
+                }
+            }
+        }
+    }
 }
