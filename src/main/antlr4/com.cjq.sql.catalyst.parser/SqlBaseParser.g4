@@ -494,13 +494,17 @@ identifierReference
     | multipartIdentifier
     ;
 
+limitPagination:
+    INTEGER_VALUE COMMA INTEGER_VALUE
+    ;
+
 queryOrganization
     : (ORDER BY order+=sortItem (COMMA order+=sortItem)*)?
       (CLUSTER BY clusterBy+=expression (COMMA clusterBy+=expression)*)?
       (DISTRIBUTE BY distributeBy+=expression (COMMA distributeBy+=expression)*)?
       (SORT BY sort+=sortItem (COMMA sort+=sortItem)*)?
       windowClause?
-      (LIMIT (ALL | limit=expression))?
+      (LIMIT (ALL | limit=expression | limitPagination) )?
       (OFFSET offset=expression)?
     ;
 

@@ -1,31 +1,38 @@
 package com.cjq.plan.logical;
 
 
+import com.cjq.common.FieldFunction;
+import com.cjq.exception.EsSqlParseException;
+
+import static com.cjq.common.FieldFunction.*;
+
 public class Field extends LogicalPlan {
-    private String field;
+    private String fieldName;
     private String alias;
+    private boolean isFunction;
+    private FieldFunction funcName;
     private boolean isConstant;
     private Object constantValue;
 
-    public Field(String field, String alias, boolean isConstant) {
-        this.field = field;
-        this.alias = alias;
-        this.isConstant = isConstant;
+    public Field() {
     }
 
-    public Field(String field, String alias, boolean isConstant, Object constantValue) {
-        this.field = field;
-        this.alias = alias;
-        this.isConstant = isConstant;
-        this.constantValue = constantValue;
+    public Field(String fieldName, String funcName) {
+        this.fieldName = fieldName;
+        isFunction = true;
+        setFuncName(funcName);
     }
 
-    public String getField() {
-        return field;
+    public Field(String fieldName) {
+        this.fieldName = fieldName;
     }
 
-    public void setField(String field) {
-        this.field = field;
+    public String getFieldName() {
+        return fieldName;
+    }
+
+    public void setFieldName(String fieldName) {
+        this.fieldName = fieldName;
     }
 
     public String getAlias() {
@@ -50,5 +57,50 @@ public class Field extends LogicalPlan {
 
     public void setConstantValue(Object constantValue) {
         this.constantValue = constantValue;
+    }
+
+    public boolean isFunction() {
+        return isFunction;
+    }
+
+    public void setFunction(boolean function) {
+        isFunction = function;
+    }
+
+    public FieldFunction getFuncName() {
+        return funcName;
+    }
+
+
+    public void setFuncName(String funcName) {
+        switch (funcName) {
+            case "COUNT":
+                this.funcName = COUNT;
+                break;
+            case "SUM":
+                this.funcName = SUM;
+                break;
+            case "AVG":
+                this.funcName = AVG;
+                break;
+            case "MAX":
+                this.funcName = MAX;
+                break;
+            case "MIN":
+                this.funcName = MIN;
+                break;
+            default:
+                throw new EsSqlParseException("The function " + funcName + " is not supported.");
+        }
+    }
+
+    @Override
+    public String toString() {
+        return "Field{" + "fieldName='" + fieldName + '\'' +
+                ", alias='" + alias + '\'' +
+                ", funcName='" + funcName + '\'' +
+                ", isConstant=" + isConstant +
+                ", constantValue=" + constantValue +
+                '}';
     }
 }

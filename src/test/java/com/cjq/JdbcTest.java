@@ -95,7 +95,8 @@ public class JdbcTest {
 //            String sql = "SELECT * FROM my_index_1 WHERE f2 term '你好'";
 //            String sql = "SELECT * FROM my_index_1 WHERE f3 like 'cjq%'";
 //            String sql = "SELECT * FROM my_index_1 WHERE f3 not like 'cjq%'";
-        String sql = "select 1 f, '1' ff,f2, f1 from my_index order by f3";
+        String sql = "select sum(f1) g1, avg(f2) g2 from my_index1 order by g2 desc, f3 desc ";
+//        String sql = "select f3,f4,sum(f1) as f3, avg(f2) as avg from my_index1 group by f3,f4";
         sqlExecute(sql);
 
     }
@@ -111,6 +112,7 @@ public class JdbcTest {
     }
 
     private void sqlExecute(String sql) {
+        System.out.println(sql);
         try (Connection connection = getConnection2()) {
             PreparedStatement ps = connection.prepareStatement(sql);
             ResultSet rs = ps.executeQuery();

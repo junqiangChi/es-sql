@@ -8,7 +8,7 @@ import org.antlr.v4.runtime.tree.AbstractParseTreeVisitor;
  * of the available methods.
  *
  * @param <T> The return type of the visit operation. Use {@link Void} for
- * operations with no return type.
+ *            operations with no return type.
  */
 @SuppressWarnings("CheckReturnValue")
 public class SqlBaseParserBaseVisitor<T> extends AbstractParseTreeVisitor<T> implements SqlBaseParserVisitor<T> {
@@ -1505,6 +1505,17 @@ public class SqlBaseParserBaseVisitor<T> extends AbstractParseTreeVisitor<T> imp
      */
     @Override
     public T visitIdentifierReference(SqlBaseParser.IdentifierReferenceContext ctx) {
+        return visitChildren(ctx);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>The default implementation returns the result of calling
+     * {@link #visitChildren} on {@code ctx}.</p>
+     */
+    @Override
+    public T visitLimitPagination(SqlBaseParser.LimitPaginationContext ctx) {
         return visitChildren(ctx);
     }
 

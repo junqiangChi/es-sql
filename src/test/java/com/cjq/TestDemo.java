@@ -12,7 +12,7 @@ import org.junit.Test;
 public class TestDemo {
     @Test
     public void test(){
-        String sql = "SELECT * FROM TBL1 WHERE F1 REGEXP '2' AND F2 = '1' AND F2 between '1' and '2'";
+        String sql = "SELECT f1,f1 FROM T1 LIMIT 1,55;";
         SqlBaseLexer lexer = new SqlBaseLexer(new EqlParserDriver.UpperCaseCharStream(CharStreams.fromString(sql)));
         SqlBaseParser parser = new SqlBaseParser(new CommonTokenStream(lexer));
         AstBuilder astBuilder = new AstBuilder();

@@ -16,56 +16,87 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 
-public class DefaultQueryAction extends BaseAction {
-    private static final Logger LOG = LoggerFactory.getLogger(DefaultQueryAction.class);
+public class DefaultQueryActionPlan implements ActionPlan {
+    private static final Logger LOG = LoggerFactory.getLogger(DefaultQueryActionPlan.class);
+    protected Query query;
+    protected SearchRequest searchRequest = new SearchRequest();
+    protected SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
 
-    @Override
-    public ActionRequest buildRequest(LogicalPlan logicalPlan) {
+    public DefaultQueryActionPlan(LogicalPlan logicalPlan) {
         if (logicalPlan instanceof Query) {
-            Query query = (Query) logicalPlan;
-            SearchRequest searchRequest = new SearchRequest();
-            SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
-            setFrom(searchRequest, query.getFrom());
-            setSelect(searchSourceBuilder, query.getSelect());
-            setWhere(searchSourceBuilder, query.getWhere());
-            LogicalPlan tmpLogicalPlan = query.getPlan();
-            while (tmpLogicalPlan != null) {
-                if (tmpLogicalPlan instanceof OrderBy) {
-                    setOrderBy(searchSourceBuilder, (OrderBy) tmpLogicalPlan);
-                }
-                if (tmpLogicalPlan instanceof Limit) {
-                    setLimit(searchSourceBuilder, (Limit) tmpLogicalPlan);
-                }
-                tmpLogicalPlan = tmpLogicalPlan.getPlan();
-            }
-            LOG.info("searchQuery:{}", searchSourceBuilder);
-            searchRequest.source(searchSourceBuilder);
-            return searchRequest;
+            this.query = (Query) logicalPlan;
+            checkQuerySql();
+        } else {
+            throw new EsSqlParseException("This sql is not query!");
         }
-        throw new EsSqlParseException("This sql is not query!");
+
     }
 
-    private void setSelect(SearchSourceBuilder searchSourceBuilder, Select select) {
+    private void checkQuerySql() {
+        List<Field> fields = query.getSelect().getFields();
+        HashSet<String> fieldSet = new HashSet<>();
+        for (Field field : fields) {
+            if (field.getAlias() != null) {
+                if (fieldSet.contains(field.getAlias())) {
+                    throw new EsSqlParseException("Duplicate field: " + field);
+                }
+                fieldSet.add(field.getAlias());
+            } else {
+                if (fieldSet.contains(field.getFieldName())) {
+                    throw new EsSqlParseException("Duplicate field: " + field);
+                }
+                fieldSet.add(field.getFieldName());
+            }
+        }
+    }
+
+    @Override
+    public ActionRequest explain() {
+        setFrom(query.getFrom());
+        setSelect(query.getSelect());
+        setWhere(query.getWhere());
+        LogicalPlan tmpLogicalPlan = query.getPlan();
+        while (tmpLogicalPlan != null) {
+            if (tmpLogicalPlan instanceof OrderBy) {
+                setOrderBy((OrderBy) tmpLogicalPlan);
+            }
+            if (tmpLogicalPlan instanceof Limit) {
+                setLimit((Limit) tmpLogicalPlan);
+            }
+            tmpLogicalPlan = tmpLogicalPlan.getPlan();
+        }
+        LOG.debug("searchQuery:{}", searchSourceBuilder);
+        searchRequest.source(searchSourceBuilder);
+        return searchRequest;
+    }
+
+    protected void setSelect(Select select) {
         String[] fieldsToFetch = select.getFields()
                 .stream()
                 .filter(f -> !f.isConstant())
-                .map(Field::getField).toArray(String[]::new);
+                .map(Field::getFieldName).toArray(String[]::new);
         if (fieldsToFetch.length > 0) {
             searchSourceBuilder.fetchSource(new FetchSourceContext(true, fieldsToFetch, null));
         }
     }
 
-    private void setFrom(SearchRequest searchRequest, From from) {
+    protected void setFrom(From from) {
         searchRequest.indices(from.getIndex());
     }
 
-    private void setLimit(SearchSourceBuilder searchSourceBuilder, Limit limit) {
-        searchSourceBuilder.size(limit.getNum());
+    protected void setGroupBy(GroupBy groupBy) {
+        // Nothing to do
     }
 
-    private void setWhere(SearchSourceBuilder searchSourceBuilder, Where where) {
+    protected void setLimit(Limit limit) {
+        searchSourceBuilder.from(limit.getFrom());
+        searchSourceBuilder.size(limit.getSize());
+    }
+
+    protected void setWhere(Where where) {
         if (where == null) {
             return;
         }
@@ -84,10 +115,9 @@ public class DefaultQueryAction extends BaseAction {
         searchSourceBuilder.query(boolQueryBuilder);
     }
 
-    private void setOrderBy(SearchSourceBuilder searchSourceBuilder, OrderBy orderBy) {
-        for (LogicalPlan orderLogicalPlan : orderBy.getSorts()) {
-            if (orderLogicalPlan != null) {
-                Sort sort = (Sort) orderLogicalPlan;
+    protected void setOrderBy(OrderBy orderBy) {
+        for (Sort sort : orderBy.getSorts()) {
+            if (sort != null) {
                 searchSourceBuilder.sort(sort.field, SortOrder.valueOf(sort.getOrderType().toString()));
             }
         }

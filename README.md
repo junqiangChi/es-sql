@@ -1,26 +1,79 @@
-# Es-Sql
+# Es Sql
 
-Es-Sql是使用SQL语法操作[Elasticsearch](https://github.com/elastic/elasticsearch)
-的项目，其中语法解析使用了[Antlr4](https://github.com/antlr/antlr4)
-组件，数据库连接池使用[Druid](https://github.com/alibaba/druid)。
+[![License](https://img.shields.io/badge/license-Apache%202-4EB1BA.svg)](https://www.apache.org/licenses/LICENSE-2.0.html)
+[![Elastic Elasticsearch](./doc/images/Elastic-Elasticsearch.svg)](https://github.com/elastic/elasticsearch)
+[![Antlr Antlr4](./doc/images/Antrl-Antrl4.svg)](https://github.com/antlr/antlr4)
+[![Alibaba Druid](./doc/images/Alibaba-Druid.svg)](https://github.com/alibaba/druid)
+[![Alibaba Druid](./doc/images/Java-1.8.svg)]()
+[![CN doc](./doc/images/文档-中文版-blue.svg)](./doc/README-zh-CN.md)
+
+## Introduction
+
+Es SQL uses SQL syntax to operate on [`Elasticsearch`](https://github.com/elastic/elasticsearch)
+The project used [`Antlr4`](https://github.com/antlr/antlr4) for syntax parsing
+Component, database connection pool usage [`Druid`](https://github.com/alibaba/druid).
+
+## Builds
+
+```shell
+git clone https://github.com/junqiangChi/es-sql.git
+mvn clean install es-sql -SkipTests=true
+```
 
 ## EsJdbcConfig
 
-使用Jdbc连接时可设置的配置参数
+Configuration parameters that can be set when using Jdbc connection
 
-| 参数key              | 默认值    | 类型      | 描述                                               |
-|--------------------|--------|---------|--------------------------------------------------|
-| user               | (none) | String  | Elasticsearch用户名                                 |
-| password           | (none) | String  | Elasticsearch用户密码                                |
-| url                | (none) | String  | jdbc连接的Url，例：jdbc:elasticsearch://localhost:9200 |
-| include.index.name | false  | Boolean | 查询结果是否包含索引名                                      |
-| include.doc.id     | false  | Boolean | 查询结果是否包含doc_id                                   |
-| include.type       | false  | Boolean | 查询结果是否包含类型                                       |
-| include.score      | false  | Boolean | 查询结果是否包含score                                    |
+| key                | default | type    | description                                   |
+|--------------------|---------|---------|-----------------------------------------------|
+| user               | (none)  | String  | Elasticsearch username                        |
+| password           | (none)  | String  | Elasticsearch password                        |
+| url                | (none)  | String  | Url eg：jdbc:elasticsearch://localhost:9200    |
+| include.index.name | false   | Boolean | The query result include the index name       |
+| include.doc.id     | false   | Boolean | The query result include the index name docId |
+| include.type       | false   | Boolean | The query result include the type             |
+| include.score      | false   | Boolean | The query result include the score            |
 
-## 创建jdbc连接
+## SQL Supported Features
 
-### Driver和Druid两种创建连接方式
+- ✅ SELECT
+    - ✅ Field alias
+    - ✅ Constant Field
+- ✅ WHERE
+    - ✅ =
+    - ✅ >
+    - ✅ <
+    - ✅ >=
+    - ✅ <=
+    - ✅ !=
+    - ✅ IS
+    - ✅ IS NOT
+    - ✅ LIKE
+    - ✅ NOT LIKE
+    - ✅ IN
+    - ✅ NOT IN
+    - ✅ BETWEEN
+    - ✅ NBETWEEN
+    - ✅ REGEXP
+    - ✅ NREGEXP
+    - ✅ MATCH
+    - ✅ MATCH_PHRASE
+    - ✅ TERM
+- ✅ ORDER BY
+- ✅ GROUP BY
+    - ✅ FUNCTION
+        - ✅ COUNT()
+        - ✅ MAX()
+        - ✅ MIN()
+        - ✅ SUM()
+        - ✅ AVG()
+- ✅ LIMIT
+    - ✅ LIMIT 1
+    - ✅ LIMIT 1, 5
+
+## Create jdbc connection
+
+### Use `Driver` or `Druid`  to create connections
 
 ```java
 import java.sql.Connection;
