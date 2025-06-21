@@ -24,15 +24,15 @@ mvn clean install es-sql -SkipTests=true
 
 Configuration parameters that can be set when using Jdbc connection
 
-| key                | default | type    | description                                   |
-|--------------------|---------|---------|-----------------------------------------------|
-| user               | (none)  | String  | Elasticsearch username                        |
-| password           | (none)  | String  | Elasticsearch password                        |
-| url                | (none)  | String  | Url eg：jdbc:elasticsearch://localhost:9200    |
-| include.index.name | false   | Boolean | The query result include the index name       |
-| include.doc.id     | false   | Boolean | The query result include the index name docId |
-| include.type       | false   | Boolean | The query result include the type             |
-| include.score      | false   | Boolean | The query result include the score            |
+| key                | default | type    | description                                |
+|--------------------|---------|---------|--------------------------------------------|
+| user               | (none)  | String  | Elasticsearch username                     |
+| password           | (none)  | String  | Elasticsearch password                     |
+| url                | (none)  | String  | Url eg：jdbc:elasticsearch://localhost:9200 |
+| include.index.name | false   | Boolean | The query result include the index name    |
+| include.doc.id     | false   | Boolean | The query result include the docId         |
+| include.type       | false   | Boolean | The query result include the type          |
+| include.score      | false   | Boolean | The query result include the score         |
 
 ## SQL Supported Features
 
