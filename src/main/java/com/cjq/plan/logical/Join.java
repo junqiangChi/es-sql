@@ -3,12 +3,6 @@ package com.cjq.plan.logical;
 
 import java.util.List;
 
-/**
- * @author: Julian Chi
- * @date: 2024/8/22 16:35
- * @description:
- */
-
 public class Join extends LogicalPlan {
     private List<From> froms;
     private List<Condition> joinOn;

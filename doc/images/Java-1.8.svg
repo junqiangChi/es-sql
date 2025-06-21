@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="55" height="20" role="img" aria-label="Elastic: Elasticsearch">
+    <title>Antlr: Antlr4</title>
+    <linearGradient id="s" x2="0" y2="100%">
+        <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
+        <stop offset="1" stop-opacity=".1"/>
+    </linearGradient>
+    <clipPath id="r">
+        <rect width="55" height="20" rx="3" fill="#fff"/>
+    </clipPath>
+    <g clip-path="url(#r)">
+        <rect width="45" height="20" fill="#555"/>
+        <rect x="32" width="50" height="20" fill="#0091FF"/>
+        <rect width="55" height="20" fill="url(#s)"/>
+    </g>
+    <g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif"
+       text-rendering="geometricPrecision" font-size="110">
+        <text aria-hidden="true" x="150" y="150" fill="#010101" fill-opacity=".3" transform="scale(.1)" textLength="220">Java</text>
+        <text x="150" y="140" transform="scale(.1)" fill="#fff" textLength="220">Java</text>
+        <text aria-hidden="true" x="430" y="150" fill="#010101" fill-opacity=".3" transform="scale(.1)" textLength="150">1.8</text>
+        <text x="430" y="140" transform="scale(.1)" fill="#fff" textLength="150">1.8</text>
+    </g>
+</svg>

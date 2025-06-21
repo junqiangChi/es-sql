@@ -2465,6 +2465,24 @@ public class SqlBaseParserBaseListener implements SqlBaseParserListener {
      * <p>The default implementation does nothing.</p>
      */
     @Override
+    public void enterLimitPagination(SqlBaseParser.LimitPaginationContext ctx) {
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>The default implementation does nothing.</p>
+     */
+    @Override
+    public void exitLimitPagination(SqlBaseParser.LimitPaginationContext ctx) {
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>The default implementation does nothing.</p>
+     */
+    @Override
     public void enterQueryOrganization(SqlBaseParser.QueryOrganizationContext ctx) {
     }
 

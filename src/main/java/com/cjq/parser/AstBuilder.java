@@ -41,39 +41,67 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
         return visit(ctx.querySpecification());
     }
 
+
     @Override
     public LogicalPlan visitRegularQuerySpecification(SqlBaseParser.RegularQuerySpecificationContext ctx) {
         SqlBaseParser.SelectClauseContext selectClauseContext = ctx.selectClause();
         From from = (From) visit(ctx.fromClause());
-        List<Field> fields = selectClauseContext.namedExpressionSeq().namedExpression().stream().map(f -> {
-            if (f.errorCapturingIdentifier() != null) {
-                if (isConstant(f)) {
-                    return new Field(null, f.errorCapturingIdentifier().getText(), true, ((Value) visit(f.expression())).getText());
-                } else {
-                    return new Field(f.expression().getText(), f.errorCapturingIdentifier().getText(), false, null);
-                }
-            } else {
-                return new Field(f.expression().getText(), null, false, null);
-            }
-        }).collect(Collectors.toList());
+        List<Field> fields = selectClauseContext
+                .namedExpressionSeq()
+                .namedExpression()
+                .stream().map(this::getField)
+                .collect(Collectors.toList());
         SqlBaseParser.WhereClauseContext whereClauseContext = ctx.whereClause();
-        LogicalPlan where = whereClauseContext == null ? null : visit(whereClauseContext);
-        return new Query(new Select(fields), from, (Where) where);
+        Where where = whereClauseContext == null ? null : (Where) visit(whereClauseContext);
+        GroupBy groupBy = ctx.aggregationClause() == null ? null : (GroupBy) visit(ctx.aggregationClause());
+        return new Query(new Select(fields), from, where, groupBy);
+    }
+
+    @Override
+    public LogicalPlan visitFunctionCall(SqlBaseParser.FunctionCallContext ctx) {
+        String funcName = ctx.functionName().getText().toUpperCase();
+        String fieldName = ctx.functionArgument(0).getText();
+        return new Field(fieldName, funcName);
+    }
+
+    @Override
+    public LogicalPlan visitColumnReference(SqlBaseParser.ColumnReferenceContext ctx) {
+        return new Field(ctx.getText());
+    }
+
+    private Field getField(SqlBaseParser.NamedExpressionContext ctx) {
+        Field field = (Field) visit(ctx.expression().booleanExpression());
+        if (ctx.errorCapturingIdentifier() != null) {
+            field.setAlias(ctx.errorCapturingIdentifier().getText());
+        }
+        return field;
+    }
+
+    @Override
+    public LogicalPlan visitAggregationClause(SqlBaseParser.AggregationClauseContext ctx) {
+        if (ctx.GROUP() != null) {
+            List<SqlBaseParser.GroupByClauseContext> groupByClauseContexts = ctx.groupByClause();
+            List<Field> groupByField = groupByClauseContexts.stream().map(f -> (Field) visit(f))
+                    .collect(Collectors.toList());
+            return new GroupBy(groupByField);
+        } else {
+            throw new EsSqlParseException("Only support group by clause");
+        }
     }
 
     @Override
     public LogicalPlan visitValueExpressionDefault(SqlBaseParser.ValueExpressionDefaultContext ctx) {
-        if (ctx.primaryExpression() instanceof SqlBaseParser.ColumnReferenceContext) {
-            return visit(ctx.primaryExpression());
-        } else if (ctx.primaryExpression() instanceof SqlBaseParser.ConstantDefaultContext) {
+        if (ctx.primaryExpression() instanceof SqlBaseParser.ConstantDefaultContext) {
             SqlBaseParser.ConstantDefaultContext constantDefaultContext = (SqlBaseParser.ConstantDefaultContext) ctx.primaryExpression();
-            if (constantDefaultContext.constant() instanceof SqlBaseParser.StringLiteralContext) {
-                return visitStringLiteral((SqlBaseParser.StringLiteralContext) constantDefaultContext.constant());
-            } else if (constantDefaultContext.constant() instanceof SqlBaseParser.NumericLiteralContext) {
-                return visitNumericLiteral((SqlBaseParser.NumericLiteralContext) constantDefaultContext.constant());
-            }
+            SqlBaseParser.ConstantContext constant = constantDefaultContext.constant();
+            Value value = (Value) visit(constant);
+            Field field = new Field();
+            field.setConstant(true);
+            field.setConstantValue(value.getText());
+            return field;
+        } else {
+            return visit(ctx.primaryExpression());
         }
-        return visit(ctx);
     }
 
     /**
@@ -219,10 +247,20 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
     @Override
     public LogicalPlan visitQueryOrganization(SqlBaseParser.QueryOrganizationContext ctx) {
         OrderBy orderBy = new OrderBy();
-        List<LogicalPlan> sorts = ctx.sortItem().stream().map(this::visit).collect(Collectors.toList());
+        List<Sort> sorts = ctx.sortItem().stream().map(o->(Sort)visit(o)).collect(Collectors.toList());
         orderBy.setSorts(sorts);
-        LogicalPlan limit = ctx.limit != null ? new Limit(Integer.parseInt(ctx.limit.getText())) : null;
-        orderBy.setPlan(limit);
+        LogicalPlan limitLogical = orderBy.optionalMap(ctx, (queryContext, limit) -> {
+            if (queryContext.LIMIT() != null) {
+                if (queryContext.limitPagination() != null) {
+                    limit = new Limit(Integer.parseInt(queryContext.limitPagination().INTEGER_VALUE().get(0).getText()),
+                            Integer.parseInt(queryContext.limitPagination().INTEGER_VALUE().get(1).getText()));
+                } else {
+                    limit = new Limit(0, Integer.parseInt(queryContext.limit.getText()));
+                }
+            }
+            return limit;
+        });
+        orderBy.setPlan(limitLogical);
         return orderBy;
     }
 
