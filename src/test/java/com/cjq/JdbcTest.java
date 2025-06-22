@@ -95,9 +95,13 @@ public class JdbcTest {
 //            String sql = "SELECT * FROM my_index_1 WHERE f2 term '你好'";
 //            String sql = "SELECT * FROM my_index_1 WHERE f3 like 'cjq%'";
 //            String sql = "SELECT * FROM my_index_1 WHERE f3 not like 'cjq%'";
-        String sql = "select sum(f1) g1, avg(f2) g2 from my_index1 order by g2 desc, f3 desc ";
-//        String sql = "select f3,f4,sum(f1) as f3, avg(f2) as avg from my_index1 group by f3,f4";
-        sqlExecute(sql);
+//        String sql = "select sum(f1) g1, avg(f2) g2 from my_index1 order by g2 desc, f3 desc ";
+        String sql = "select f3,f4,sum(f1) as f33, avg(f2) as avg from my_index1 group by f3,f4";
+        sqlExecuteQuery(sql);
+//        String sql = "drop table my_index123";
+//        String sql = "drop table if exists my_index123";
+//        String sql = "delete from my_index where f1 = '3'";
+//        sqlExecute(sql);
 
     }
 
@@ -112,6 +116,16 @@ public class JdbcTest {
     }
 
     private void sqlExecute(String sql) {
+        try (Connection connection = getConnection2()) {
+            PreparedStatement ps = connection.prepareStatement(sql);
+            boolean execute = ps.execute();
+            System.out.println("是否执行成功: " + execute);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void sqlExecuteQuery(String sql) {
         System.out.println(sql);
         try (Connection connection = getConnection2()) {
             PreparedStatement ps = connection.prepareStatement(sql);

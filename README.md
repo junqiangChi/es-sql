@@ -37,7 +37,7 @@ Configuration parameters that can be set when using Jdbc connection
 ## SQL Supported Features
 
 - ✅ SELECT
-    - ✅ Field alias
+    - ✅ Field Alias
     - ✅ Constant Field
 - ✅ WHERE
     - ✅ =
@@ -70,6 +70,10 @@ Configuration parameters that can be set when using Jdbc connection
 - ✅ LIMIT
     - ✅ LIMIT 1
     - ✅ LIMIT 1, 5
+- ✅ DROP
+  - ✅ DROP TABLE [IF EXITS] TABLE_NAME
+- ✅ DELETE
+  - ✅ DELETE FROM TABLE_NAME [WHERE]
 
 ## Create jdbc connection
 

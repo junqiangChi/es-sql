@@ -63,6 +63,10 @@ mvn clean install es-sql -SkipTests=true
 - ✅ LIMIT
     - ✅ LIMIT 1
     - ✅ LIMIT 1, 5
+- ✅ DROP
+    - ✅ DROP TABLE [IF EXITS] TABLE_NAME
+- ✅ DELETE
+    - ✅ DELETE FROM TABLE_NAME [WHERE]
 
 ## 创建jdbc连接
 
