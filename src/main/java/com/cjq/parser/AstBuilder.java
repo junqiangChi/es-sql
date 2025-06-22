@@ -247,7 +247,7 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
     @Override
     public LogicalPlan visitQueryOrganization(SqlBaseParser.QueryOrganizationContext ctx) {
         OrderBy orderBy = new OrderBy();
-        List<Sort> sorts = ctx.sortItem().stream().map(o->(Sort)visit(o)).collect(Collectors.toList());
+        List<Sort> sorts = ctx.sortItem().stream().map(o -> (Sort) visit(o)).collect(Collectors.toList());
         orderBy.setSorts(sorts);
         LogicalPlan limitLogical = orderBy.optionalMap(ctx, (queryContext, limit) -> {
             if (queryContext.LIMIT() != null) {
@@ -318,5 +318,24 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
         } else {
             throw new EsSqlParseException("not supported syntax：" + predicate.getText());
         }
+    }
+
+    @Override
+    public LogicalPlan visitDropTable(SqlBaseParser.DropTableContext ctx) {
+        String index = ctx.identifierReference().getText();
+        Drop drop = new Drop(index);
+        if (ctx.IF() != null && ctx.EXISTS() != null) {
+            drop.setCheckExists(true);
+        }
+        return drop;
+    }
+
+    @Override
+    public LogicalPlan visitDeleteFromTable(SqlBaseParser.DeleteFromTableContext ctx) {
+        String index = ctx.identifierReference().getText();
+        String tableAlias = ctx.tableAlias() != null ? ctx.tableAlias().getText() : null;
+        From from = new From(index, tableAlias);
+        Where where = ctx.whereClause() != null ? (Where) visit(ctx.whereClause()) : null;
+        return new Delete(from, where);
     }
 }

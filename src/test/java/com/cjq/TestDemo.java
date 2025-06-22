@@ -12,11 +12,11 @@ import org.junit.Test;
 public class TestDemo {
     @Test
     public void test(){
-        String sql = "SELECT f1,f1 FROM T1 LIMIT 1,55;";
+        String sql = "delete from t1 a where id = 111";
         SqlBaseLexer lexer = new SqlBaseLexer(new EqlParserDriver.UpperCaseCharStream(CharStreams.fromString(sql)));
         SqlBaseParser parser = new SqlBaseParser(new CommonTokenStream(lexer));
         AstBuilder astBuilder = new AstBuilder();
-        LogicalPlan query = astBuilder.visitSingleStatement(parser.singleStatement());
-        System.out.println(query);
+        LogicalPlan plan = astBuilder.visitSingleStatement(parser.singleStatement());
+        System.out.println(plan);
     }
 }

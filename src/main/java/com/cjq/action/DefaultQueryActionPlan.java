@@ -26,13 +26,11 @@ public class DefaultQueryActionPlan implements ActionPlan {
     protected SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
 
     public DefaultQueryActionPlan(LogicalPlan logicalPlan) {
-        if (logicalPlan instanceof Query) {
-            this.query = (Query) logicalPlan;
-            checkQuerySql();
-        } else {
-            throw new EsSqlParseException("This sql is not query!");
-        }
+        this.query = (Query) logicalPlan;
+        checkQuerySql();
+    }
 
+    public DefaultQueryActionPlan() {
     }
 
     private void checkQuerySql() {
@@ -68,7 +66,7 @@ public class DefaultQueryActionPlan implements ActionPlan {
             }
             tmpLogicalPlan = tmpLogicalPlan.getPlan();
         }
-        LOG.debug("searchQuery:{}", searchSourceBuilder);
+        LOG.debug("searchQuery: {}", searchSourceBuilder);
         searchRequest.source(searchSourceBuilder);
         return searchRequest;
     }

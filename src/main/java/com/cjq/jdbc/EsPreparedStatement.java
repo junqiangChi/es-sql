@@ -1,9 +1,19 @@
 package com.cjq.jdbc;
 
+import com.alibaba.druid.pool.ElasticSearchDruidDataSource;
+import com.alibaba.druid.support.logging.Log;
+import com.alibaba.druid.support.logging.LogFactory;
+import com.cjq.action.ActionPlan;
+import com.cjq.action.ActionPlanFactory;
 import com.cjq.domain.EqlParserDriver;
+import com.cjq.executor.Executor;
+import com.cjq.executor.ExecutorFactory;
+import com.cjq.handler.HandlerFactory;
+import com.cjq.handler.ResponseHandler;
 import com.cjq.plan.logical.LogicalPlan;
+import org.elasticsearch.action.ActionRequest;
+import org.elasticsearch.action.ActionResponse;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
 import java.math.BigDecimal;
@@ -12,14 +22,17 @@ import java.sql.*;
 import java.util.Calendar;
 
 public class EsPreparedStatement implements PreparedStatement {
-
+    private final static Log LOG = LogFactory.getLog(EsPreparedStatement.class);
     private EsConnection connection;
     private String sql;
     private ResultSet resultSet;
+    private LogicalPlan plan;
 
     public EsPreparedStatement(EsConnection connection, String sql) {
         this.connection = connection;
         this.sql = sql;
+        EqlParserDriver eqlParserDriver = connection.getEqlParserDriver();
+        this.plan = eqlParserDriver.parser(this.sql);
     }
 
 
@@ -346,23 +359,31 @@ public class EsPreparedStatement implements PreparedStatement {
 
     }
 
-    private ResultSet executeSql() {
-        EqlParserDriver eqlParserDriver = connection.getEqlParserDriver();
-        LogicalPlan plan = eqlParserDriver.parser(this.sql);
-        ObjectResult objectResult;
+    private ObjectResult getObjectResult() {
         try {
-            objectResult = new HandleResult(connection.getClient(), plan,
-                    connection.getProperties()).getObjectResultSet();
-        } catch (IOException e) {
+            ActionPlanFactory actionPlanFactory = ActionPlanFactory.getInstance();
+            ActionPlan actionPlan = actionPlanFactory.createAction(plan, connection.getClient());
+            ActionRequest request = actionPlan.explain();
+            ExecutorFactory executorFactory = ExecutorFactory.getInstance();
+            Executor executor = executorFactory.createActionPlanExecutor(plan, connection.getClient());
+            ActionResponse execute = executor.execute(request);
+            HandlerFactory handlerFactory = HandlerFactory.getInstance();
+            ResponseHandler handler = handlerFactory.createHandler(plan, connection.getProperties());
+            return handler.handle(execute);
+        } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private ResultSet executeSql() {
+        ObjectResult objectResult = getObjectResult();
         return new EsResultSet(this, objectResult.getHeaders(), objectResult.getRows());
     }
 
     @Override
     public boolean execute() throws SQLException {
-        this.resultSet = executeSql();
-        return true;
+        ObjectResult objectResult = getObjectResult();
+        return objectResult.isSuccess();
     }
 
     @Override
