@@ -3,7 +3,6 @@ package com.alibaba.druid.pool;
 
 import com.cjq.action.ActionPlan;
 import com.cjq.action.ActionPlanFactory;
-import com.cjq.domain.Client;
 import com.cjq.domain.EqlParserDriver;
 import com.cjq.exception.EsSqlParseException;
 import com.cjq.executor.Executor;
@@ -17,7 +16,6 @@ import org.elasticsearch.action.ActionResponse;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.Properties;
 
 /**
  * Created by allwefantasy on 8/30/16.
@@ -25,14 +23,10 @@ import java.util.Properties;
 public class ElasticSearchDruidPooledPreparedStatement extends DruidPooledPreparedStatement {
 
     private final ElasticSearchConnection connection;
-    private final Client client;
-    private final Properties properties;
 
     public ElasticSearchDruidPooledPreparedStatement(DruidPooledConnection conn, PreparedStatementHolder holder) throws SQLException {
         super(conn, holder);
         connection = (ElasticSearchConnection) conn.getConnection();
-        this.client = connection.getClient();
-        this.properties = connection.getProperties();
     }
 
     private ObjectResult getObjectResult(LogicalPlan plan) {

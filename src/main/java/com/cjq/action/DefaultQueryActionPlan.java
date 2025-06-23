@@ -72,6 +72,10 @@ public class DefaultQueryActionPlan implements ActionPlan {
     }
 
     protected void setSelect(Select select) {
+        if (select.getFields().size() == 1 && "*".equals(select.getFields().get(0).getFieldName())) {
+            searchSourceBuilder.fetchSource(new FetchSourceContext(true, null, null));
+            return;
+        }
         String[] fieldsToFetch = select.getFields()
                 .stream()
                 .filter(f -> !f.isConstant())
