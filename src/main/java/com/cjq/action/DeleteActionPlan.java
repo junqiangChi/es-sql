@@ -2,7 +2,6 @@ package com.cjq.action;
 
 import com.cjq.plan.logical.Delete;
 import com.cjq.plan.logical.LogicalPlan;
-import com.cjq.plan.logical.Where;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.index.reindex.DeleteByQueryRequest;
 import org.slf4j.Logger;
@@ -14,11 +13,6 @@ public class DeleteActionPlan extends DefaultQueryActionPlan {
 
     public DeleteActionPlan(LogicalPlan plan) {
         this.delete = (Delete) plan;
-    }
-
-    @Override
-    protected void setWhere(Where where) {
-        super.setWhere(where);
     }
 
     @Override

@@ -104,6 +104,11 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
         }
     }
 
+    @Override
+    public LogicalPlan visitStar(SqlBaseParser.StarContext ctx) {
+        return new Field("*");
+    }
+
     /**
      * 处理表名及别名
      *
