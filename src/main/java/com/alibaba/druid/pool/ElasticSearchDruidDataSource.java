@@ -56,9 +56,6 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import static com.alibaba.druid.util.Utils.getBoolean;
 
-/**
- * Created by allwefantasy on 8/30/16.
- */
 public class ElasticSearchDruidDataSource extends DruidDataSource {
 
     private final static Log LOG = LogFactory.getLog(ElasticSearchDruidDataSource.class);

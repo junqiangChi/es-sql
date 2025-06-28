@@ -11,9 +11,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Executor;
 
-/**
- * Created by allwefantasy on 8/30/16.
- */
 public class ElasticSearchConnection implements Connection {
 
     private final Client client;

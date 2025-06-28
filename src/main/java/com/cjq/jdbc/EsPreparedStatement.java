@@ -1,6 +1,5 @@
 package com.cjq.jdbc;
 
-import com.alibaba.druid.pool.ElasticSearchDruidDataSource;
 import com.alibaba.druid.support.logging.Log;
 import com.alibaba.druid.support.logging.LogFactory;
 import com.cjq.action.ActionPlan;
@@ -362,14 +361,14 @@ public class EsPreparedStatement implements PreparedStatement {
     private ObjectResult getObjectResult() {
         try {
             ActionPlanFactory actionPlanFactory = ActionPlanFactory.getInstance();
-            ActionPlan actionPlan = actionPlanFactory.createAction(plan, connection.getClient());
+            ActionPlan actionPlan = actionPlanFactory.createAction(plan);
             ActionRequest request = actionPlan.explain();
             ExecutorFactory executorFactory = ExecutorFactory.getInstance();
             Executor executor = executorFactory.createActionPlanExecutor(plan, connection.getClient());
-            ActionResponse execute = executor.execute(request);
+            ActionResponse response = executor.execute(request);
             HandlerFactory handlerFactory = HandlerFactory.getInstance();
             ResponseHandler handler = handlerFactory.createHandler(plan, connection.getProperties());
-            return handler.handle(execute);
+            return handler.handle(response);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

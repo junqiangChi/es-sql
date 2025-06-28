@@ -4,9 +4,6 @@ package com.alibaba.druid.pool;
 import javax.sql.DataSource;
 import java.util.Properties;
 
-/**
- * Created by allwefantasy on 8/30/16.
- */
 public class ElasticSearchDruidDataSourceFactory extends DruidDataSourceFactory {
 
     @Override

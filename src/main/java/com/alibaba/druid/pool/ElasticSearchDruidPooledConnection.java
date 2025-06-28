@@ -3,9 +3,6 @@ package com.alibaba.druid.pool;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
-/**
- * Created by allwefantasy on 8/30/16.
- */
 public class ElasticSearchDruidPooledConnection extends DruidPooledConnection {
     public ElasticSearchDruidPooledConnection(DruidConnectionHolder holder) {
         super(holder);

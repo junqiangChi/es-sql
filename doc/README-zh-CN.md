@@ -10,10 +10,37 @@ Es-Sql是使用SQL语法操作[`Elasticsearch`](https://github.com/elastic/elast
 
 ```shell
 git clone https://github.com/junqiangChi/es-sql.git
-mvn clean install es-sql -SkipTests=true
+mvn clean package install -DskipTests
+```
+## Elasticsearch 插件
+
+```shell
+./bin/elasticsearch-plugin install file:///elasticsearch-sql-plugin.zip
 ```
 
-## EsJdbcConfig
+### 插件使用
+
+```
+GET _es_sql
+{
+  "sql": "select * from myindex"
+}
+# 查看执行计划
+GET _es_sql/explain
+{
+  "sql": "select * from myindex"
+}
+# 查看执行计划
+POST _es_sql/explain
+{
+  "sql": "select * from myindex"
+}
+POST _es_sql
+{
+  "sql": "select * from myindex"
+}
+```
+## EsJdbcConfig配置
 
 使用Jdbc连接时可设置的配置参数
 
@@ -63,8 +90,6 @@ mvn clean install es-sql -SkipTests=true
 - ✅ LIMIT
     - ✅ LIMIT 1
     - ✅ LIMIT 1, 5
-- ✅ DROP
-    - ✅ DROP TABLE [IF EXITS] TABLE_NAME
 - ✅ DELETE
     - ✅ DELETE FROM TABLE_NAME [WHERE]
 

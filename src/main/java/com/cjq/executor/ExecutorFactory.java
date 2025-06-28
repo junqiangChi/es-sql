@@ -23,8 +23,6 @@ public class ExecutorFactory {
     public Executor createActionPlanExecutor(LogicalPlan plan, Client client) {
         if (plan instanceof Query) {
             return new QueryExecutor(client);
-        } else if (plan instanceof Drop) {
-            return new DropExecutor(client);
         } else if (plan instanceof Delete) {
             return new DeleteExecutor(client);
         }

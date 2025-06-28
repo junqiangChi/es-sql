@@ -24,15 +24,13 @@ public class ActionPlanFactory {
         return actionPlanFactory;
     }
 
-    public ActionPlan createAction(LogicalPlan plan, Client client) {
+    public ActionPlan createAction(LogicalPlan plan) {
         if (plan instanceof Query) {
             if (((Query) plan).isAgg()) {
                 return new AggQueryActionPlan(plan);
             } else {
                 return new DefaultQueryActionPlan(plan);
             }
-        } else if (plan instanceof Drop) {
-            return new DropActionPlan(plan, client);
         } else if (plan instanceof Delete) {
             return new DeleteActionPlan(plan);
         } else {
