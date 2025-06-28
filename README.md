@@ -17,7 +17,34 @@ Component, database connection pool usage [`Druid`](https://github.com/alibaba/d
 
 ```shell
 git clone https://github.com/junqiangChi/es-sql.git
-mvn clean install es-sql -SkipTests=true
+mvn clean package install -DskipTests
+```
+
+## Elasticsearch Plugin
+
+```shell
+./bin/elasticsearch-plugin install file:///elasticsearch-sql-plugin.zip
+```
+
+### Plugin Usage
+
+```
+GET _es_sql
+{
+  "sql": "select * from myindex"
+}
+GET _es_sql/explain
+{
+  "sql": "select * from myindex"
+}
+POST _es_sql/explain
+{
+  "sql": "select * from myindex"
+}
+POST _es_sql
+{
+  "sql": "select * from myindex"
+}
 ```
 
 ## EsJdbcConfig
@@ -70,10 +97,8 @@ Configuration parameters that can be set when using Jdbc connection
 - ✅ LIMIT
     - ✅ LIMIT 1
     - ✅ LIMIT 1, 5
-- ✅ DROP
-  - ✅ DROP TABLE [IF EXITS] TABLE_NAME
 - ✅ DELETE
-  - ✅ DELETE FROM TABLE_NAME [WHERE]
+    - ✅ DELETE FROM TABLE_NAME [WHERE]
 
 ## Create jdbc connection
 

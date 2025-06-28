@@ -12,15 +12,12 @@ import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.search.fetch.subphase.FetchSourceContext;
 import org.elasticsearch.search.sort.SortOrder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 
 public class DefaultQueryActionPlan implements ActionPlan {
-    private static final Logger LOG = LoggerFactory.getLogger(DefaultQueryActionPlan.class);
     protected Query query;
     protected SearchRequest searchRequest = new SearchRequest();
     protected SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
@@ -66,7 +63,6 @@ public class DefaultQueryActionPlan implements ActionPlan {
             }
             tmpLogicalPlan = tmpLogicalPlan.getPlan();
         }
-        LOG.debug("searchQuery: {}", searchSourceBuilder);
         searchRequest.source(searchSourceBuilder);
         return searchRequest;
     }

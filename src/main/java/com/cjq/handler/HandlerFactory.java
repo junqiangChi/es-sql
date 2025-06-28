@@ -32,9 +32,7 @@ public class HandlerFactory {
             } else {
                 return new DefaultQueryHandler((Query) plan, properties);
             }
-        } else if (plan instanceof Drop) {
-            return new DropHandler();
-        } else if (plan instanceof Delete) {
+        }  else if (plan instanceof Delete) {
             return new DeleteHandler();
         }
         throw new EsSqlParseException("Unsupported plan type: " + plan.getClass().getName());

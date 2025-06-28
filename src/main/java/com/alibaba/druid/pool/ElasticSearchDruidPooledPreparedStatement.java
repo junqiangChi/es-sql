@@ -17,9 +17,6 @@ import org.elasticsearch.action.ActionResponse;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-/**
- * Created by allwefantasy on 8/30/16.
- */
 public class ElasticSearchDruidPooledPreparedStatement extends DruidPooledPreparedStatement {
 
     private final ElasticSearchConnection connection;
@@ -32,14 +29,14 @@ public class ElasticSearchDruidPooledPreparedStatement extends DruidPooledPrepar
     private ObjectResult getObjectResult(LogicalPlan plan) {
         try {
             ActionPlanFactory actionPlanFactory = ActionPlanFactory.getInstance();
-            ActionPlan actionPlan = actionPlanFactory.createAction(plan, connection.getClient());
+            ActionPlan actionPlan = actionPlanFactory.createAction(plan);
             ActionRequest explain = actionPlan.explain();
             ExecutorFactory executorFactory = ExecutorFactory.getInstance();
             Executor executor = executorFactory.createActionPlanExecutor(plan, connection.getClient());
-            ActionResponse execute = executor.execute(explain);
+            ActionResponse response = executor.execute(explain);
             HandlerFactory handlerFactory = HandlerFactory.getInstance();
             ResponseHandler handler = handlerFactory.createHandler(plan, connection.getProperties());
-            return handler.handle(execute);
+            return handler.handle(response);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

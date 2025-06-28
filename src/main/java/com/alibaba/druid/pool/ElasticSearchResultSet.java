@@ -11,9 +11,6 @@ import java.util.Calendar;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Created by allwefantasy on 8/30/16.
- */
 public class ElasticSearchResultSet implements ResultSet {
 
     private int index = -1;
