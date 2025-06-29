@@ -2,7 +2,6 @@ package com.cjq.handler;
 
 import com.cjq.exception.EsSqlParseException;
 import com.cjq.plan.logical.Delete;
-import com.cjq.plan.logical.Drop;
 import com.cjq.plan.logical.LogicalPlan;
 import com.cjq.plan.logical.Query;
 

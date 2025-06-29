@@ -11,7 +11,7 @@ import org.junit.Test;
 
 public class TestDemo {
     @Test
-    public void test(){
+    public void test() {
         String sql = "delete from t1 a where id = 111";
         SqlBaseLexer lexer = new SqlBaseLexer(new EqlParserDriver.UpperCaseCharStream(CharStreams.fromString(sql)));
         SqlBaseParser parser = new SqlBaseParser(new CommonTokenStream(lexer));

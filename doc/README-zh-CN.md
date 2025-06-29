@@ -12,7 +12,10 @@ Es-Sql是使用SQL语法操作[`Elasticsearch`](https://github.com/elastic/elast
 git clone https://github.com/junqiangChi/es-sql.git
 mvn clean package install -DskipTests
 ```
+
 ## Elasticsearch 插件
+
+### 插件安装
 
 ```shell
 ./bin/elasticsearch-plugin install file:///elasticsearch-sql-plugin.zip
@@ -40,6 +43,17 @@ POST _es_sql
   "sql": "select * from myindex"
 }
 ```
+
+### 插件查询页面
+
+安装完插件，重启elasticsearch后，可进行以下页面，进行sql查询
+
+```
+http://localhost:9200/es_sql_plugin
+```
+
+[![web site](./images/Plugin-Web.png)]()
+
 ## EsJdbcConfig配置
 
 使用Jdbc连接时可设置的配置参数

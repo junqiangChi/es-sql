@@ -22,6 +22,8 @@ mvn clean package install -DskipTests
 
 ## Elasticsearch Plugin
 
+### Plugin Install
+
 ```shell
 ./bin/elasticsearch-plugin install file:///elasticsearch-sql-plugin.zip
 ```
@@ -47,9 +49,19 @@ POST _es_sql
 }
 ```
 
+### Plugin Query Page
+
+After installing the plugin and restarting Elasticsearch, you can proceed to the following page to perform SQL queries
+
+```
+http://localhost:9200/es_sql_plugin
+```
+
+[![web site](./doc/images/Plugin-Web.png)]()
+
 ## EsJdbcConfig
 
-Configuration parameters that can be set when using Jdbc connection
+Configuration parameters that can be set when using jdbc connection
 
 | key                | default | type    | description                                |
 |--------------------|---------|---------|--------------------------------------------|
