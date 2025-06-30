@@ -343,4 +343,16 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
         Where where = ctx.whereClause() != null ? (Where) visit(ctx.whereClause()) : null;
         return new Delete(from, where);
     }
+
+    @Override
+    public LogicalPlan visitShowTables(SqlBaseParser.ShowTablesContext ctx) {
+        if (ctx.FROM() != null || ctx.IN() != null) {
+            return new Show(ctx.identifierReference().getText());
+        }
+        if (ctx.LIKE() != null) {
+            String patternText = ctx.pattern.getText();
+            return new Show(patternText.substring(1, patternText.length() - 1));
+        }
+        return new Show();
+    }
 }

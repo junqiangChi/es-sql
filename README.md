@@ -109,8 +109,14 @@ Configuration parameters that can be set when using jdbc connection
 - ✅ LIMIT
     - ✅ LIMIT 1
     - ✅ LIMIT 1, 5
+- ✅ SHOW
+    - ✅ SHOW TABLES
+    - ✅ SHOW TABLES [FROM | IN] TABLE_NAME
+    - ✅ SHOW TABLES LIKE 'PATTERN'
 - ✅ DELETE
     - ✅ DELETE FROM TABLE_NAME [WHERE]
+- ✅ DROP
+    - ✅ DROP TABLE TABLE_NAME
 
 ## Create jdbc connection
 

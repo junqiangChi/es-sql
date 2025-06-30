@@ -19,7 +19,7 @@ public class JdbcTest {
     public void before() {
         properties.put(ElasticsearchJdbcConfig.ES_URL.getName(), "jdbc:elasticsearch://localhost:9200");
         properties.put(ElasticsearchJdbcConfig.USERNAME.getName(), "elastic");
-        properties.put(ElasticsearchJdbcConfig.PASSWORD.getName(), "123456");
+        properties.put(ElasticsearchJdbcConfig.PASSWORD.getName(), "Cjq@vkw945");
         properties.put(ElasticsearchJdbcConfig.INCLUDE_INDEX.getName(), "true");
         properties.put(ElasticsearchJdbcConfig.INCLUDE_DOC_ID.getName(), "true");
     }
@@ -96,7 +96,10 @@ public class JdbcTest {
 //            String sql = "SELECT * FROM my_index_1 WHERE f3 like 'cjq%'";
 //            String sql = "SELECT * FROM my_index_1 WHERE f3 not like 'cjq%'";
 //        String sql = "select sum(f1) g1, avg(f2) g2 from my_index1 order by g2 desc, f3 desc ";
-        String sql = "select f3,f4,sum(f1) as f33, avg(f2) as avg from my_index1 group by f3,f4";
+//        String sql = "select f3,f4,sum(f1) as f33, avg(f2) as avg from my_index1 group by f3,f4";
+//        String sql = "drop table my_index11";
+//        String sql = "show tables";
+        String sql = "show tables like 'my_*'";
         sqlExecuteQuery(sql);
 //        String sql = "drop table my_index123";
 //        String sql = "drop table if exists my_index123";

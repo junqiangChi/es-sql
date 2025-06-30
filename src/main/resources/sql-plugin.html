@@ -534,7 +534,7 @@
             });
 
             if (!response.ok) {
-                throw new Error(`Request Failure，Status: ${response.status}`);
+                throw new Error(`Request Failure，Status: ${response.status}, ${response.body}`);
             }
 
             const data = await response.json();

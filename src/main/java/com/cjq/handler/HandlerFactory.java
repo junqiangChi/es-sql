@@ -1,9 +1,7 @@
 package com.cjq.handler;
 
 import com.cjq.exception.EsSqlParseException;
-import com.cjq.plan.logical.Delete;
-import com.cjq.plan.logical.LogicalPlan;
-import com.cjq.plan.logical.Query;
+import com.cjq.plan.logical.*;
 
 import java.util.Properties;
 
@@ -31,8 +29,12 @@ public class HandlerFactory {
             } else {
                 return new DefaultQueryHandler((Query) plan, properties);
             }
-        }  else if (plan instanceof Delete) {
+        } else if (plan instanceof Delete) {
             return new DeleteHandler();
+        } else if (plan instanceof Show) {
+            return new ShowHandler();
+        } else if (plan instanceof Drop) {
+            return new DropHandler();
         }
         throw new EsSqlParseException("Unsupported plan type: " + plan.getClass().getName());
     }

@@ -104,8 +104,14 @@ http://localhost:9200/es_sql_plugin
 - ✅ LIMIT
     - ✅ LIMIT 1
     - ✅ LIMIT 1, 5
+- ✅ SHOW
+    - ✅ SHOW TABLES
+    - ✅ SHOW TABLES [FROM | IN] TABLE_NAME
+    - ✅ SHOW TABLES LIKE 'PATTERN'
 - ✅ DELETE
     - ✅ DELETE FROM TABLE_NAME [WHERE]
+- ✅ DROP
+    - ✅ DROP TABLE TABLE_NAME
 
 ## 创建jdbc连接
 

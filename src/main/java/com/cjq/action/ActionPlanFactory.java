@@ -1,9 +1,7 @@
 package com.cjq.action;
 
 import com.cjq.exception.EsSqlParseException;
-import com.cjq.plan.logical.Delete;
-import com.cjq.plan.logical.LogicalPlan;
-import com.cjq.plan.logical.Query;
+import com.cjq.plan.logical.*;
 
 public class ActionPlanFactory {
     private static volatile ActionPlanFactory actionPlanFactory;
@@ -31,8 +29,12 @@ public class ActionPlanFactory {
             }
         } else if (plan instanceof Delete) {
             return new DeleteActionPlan(plan);
-        } else {
-            throw new EsSqlParseException("Unsupported logical plan type: " + plan.getClass().getName());
+        } else if (plan instanceof Show) {
+            return new ShowActionPlan(plan);
+        } else if (plan instanceof Drop) {
+            return new DropActionPlan(plan);
         }
+        throw new EsSqlParseException("Unsupported logical plan type: " + plan.getClass().getName());
+
     }
 }
