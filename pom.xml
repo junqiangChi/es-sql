@@ -6,7 +6,7 @@
 
     <groupId>com.cjq</groupId>
     <artifactId>es-sql</artifactId>
-    <version>${elasticsearch.version}</version>
+    <version>7.12.1</version>
     <description>Using Elasticsearch with sql</description>
 
     <properties>
@@ -68,7 +68,7 @@
                 <includes>
                     <include>es-plugin.properties</include>
                     <include>plugin-descriptor.properties</include>
-                    <include>sql-plugin.html</include>
+                    <include>web/*</include>
                 </includes>
             </resource>
         </resources>

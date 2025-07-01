@@ -25,7 +25,7 @@ public class EsPluginWebAction extends BaseRestHandler {
 
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
-        InputStream inputStream = getClass().getResourceAsStream("/sql-plugin.html");
+        InputStream inputStream = getClass().getResourceAsStream("/web/index.html");
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
 
         int nRead;

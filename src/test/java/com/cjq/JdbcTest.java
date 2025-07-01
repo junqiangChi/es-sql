@@ -19,7 +19,7 @@ public class JdbcTest {
     public void before() {
         properties.put(ElasticsearchJdbcConfig.ES_URL.getName(), "jdbc:elasticsearch://localhost:9200");
         properties.put(ElasticsearchJdbcConfig.USERNAME.getName(), "elastic");
-        properties.put(ElasticsearchJdbcConfig.PASSWORD.getName(), "Cjq@vkw945");
+        properties.put(ElasticsearchJdbcConfig.PASSWORD.getName(), "123456");
         properties.put(ElasticsearchJdbcConfig.INCLUDE_INDEX.getName(), "true");
         properties.put(ElasticsearchJdbcConfig.INCLUDE_DOC_ID.getName(), "true");
     }

@@ -1,10 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
-
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Elasticsearch SQL Query</title>
+    <title>Elasticsearch SQL</title>
     <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
     <!-- 引入Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -92,40 +91,42 @@
         }
     </style>
 </head>
-
 <body class="bg-gray-50 font-inter text-gray-800 min-h-screen flex flex-col">
 <!-- 顶部导航栏 -->
 <header class="bg-white shadow-sm sticky top-0 z-10 transition-all duration-300">
     <div class="container mx-auto px-4 py-4 flex items-center justify-between">
         <div class="flex items-center space-x-2">
             <i class="fa fa-table text-primary text-2xl"></i>
-            <h1 class="text-xl font-bold text-gray-800">Elasticsearch SQL Query</h1>
+            <h1 id="pageTitle" class="text-xl font-bold text-gray-800">Elasticsearch SQL Query</h1>
         </div>
         <div class="flex items-center space-x-4">
             <button id="refreshBtn"
                     class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors duration-200 flex items-center space-x-2 hover-lift">
                 <i class="fa fa-refresh"></i>
-                <span>Refresh</span>
+                <span id="refreshText">Refresh</span>
             </button>
+            <div class="relative">
+                <button id="languageBtn" class="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors duration-200 flex items-center space-x-2 hover-lift">
+                    <i class="fa fa-language"></i>
+                    <span id="languageText">English</span>
+                    <i class="fa fa-chevron-down text-xs"></i>
+                </button>
+                <div id="languageDropdown" class="absolute right-0 mt-2 w-40 bg-white rounded-md shadow-lg py-1 hidden z-10">
+                    <a href="#" data-lang="en" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">English</a>
+                    <a href="#" data-lang="zh" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">中文</a>
+                </div>
+            </div>
         </div>
     </div>
 </header>
 
 <!-- 主要内容区 -->
 <main class="flex-grow container mx-auto px-4 py-8">
-    <!-- 页面标题和说明 -->
-    <!-- <div class="mb-8 animate-fadeIn">
-      <h2 class="text-[clamp(1.5rem,3vw,2.5rem)] font-bold text-gray-800 mb-2">接口数据表格</h2>
-      <p class="text-gray-600 max-w-3xl">
-        本页面展示从接口获取的数据表格。您可以在下方输入接口参数，然后点击"调用接口"按钮获取数据。
-      </p>
-    </div> -->
-
     <!-- API参数输入卡片 -->
     <div class="bg-white rounded-xl shadow-md mb-8 p-6 api-param-card animate-slideUp" style="animation-delay: 0.1s;">
         <div class="flex flex-col md:flex-row items-start md:items-center gap-4">
             <div class="flex-grow w-full">
-                <label for="apiParams" class="block text-sm font-medium text-gray-700 mb-2">
+                <label for="apiParams" id="sqlLabel" class="block text-sm font-medium text-gray-700 mb-2">
                     <i class="fa fa-file-text-o mr-2"></i>Query SQL
                 </label>
                 <div class="relative">
@@ -133,7 +134,7 @@
                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-200 min-h-[100px] resize-y"
                       placeholder='Input Query SQL...'></textarea>
                     <div class="absolute bottom-2 right-2 text-xs text-gray-400">
-                        <span id="charCount">0</span> Char
+                        <span id="charCount">0</span> <span id="charText">Char</span>
                     </div>
                 </div>
             </div>
@@ -141,12 +142,12 @@
                 <button id="callApiBtn"
                         class="px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors duration-200 flex items-center justify-center space-x-2 hover-lift">
                     <i class="fa fa-play-circle"></i>
-                    <span>Query</span>
+                    <span id="queryText">Query</span>
                 </button>
                 <button id="clearParamsBtn"
                         class="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors duration-200 flex items-center justify-center space-x-2 hover-lift">
                     <i class="fa fa-eraser"></i>
-                    <span>Clear</span>
+                    <span id="clearText">Clear</span>
                 </button>
             </div>
         </div>
@@ -164,7 +165,7 @@
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 animate-slideUp" style="animation-delay: 0.1s;">
         <div class="bg-white rounded-xl p-6 shadow-md hover-lift">
             <div class="flex items-center justify-between mb-4">
-                <h3 class="text-lg font-semibold text-gray-700">Column Count</h3>
+                <h3 id="columnCountTitle" class="text-lg font-semibold text-gray-700">Column Count</h3>
                 <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                     <i class="fa fa-list-alt text-primary"></i>
                 </div>
@@ -174,7 +175,7 @@
 
         <div class="bg-white rounded-xl p-6 shadow-md hover-lift">
             <div class="flex items-center justify-between mb-4">
-                <h3 class="text-lg font-semibold text-gray-700">Rows Count</h3>
+                <h3 id="rowsCountTitle" class="text-lg font-semibold text-gray-700">Rows Count</h3>
                 <div class="w-10 h-10 rounded-full bg-success/10 flex items-center justify-center">
                     <i class="fa fa-database text-success"></i>
                 </div>
@@ -184,7 +185,7 @@
 
         <div class="bg-white rounded-xl p-6 shadow-md hover-lift">
             <div class="flex items-center justify-between mb-4">
-                <h3 class="text-lg font-semibold text-gray-700">Last UpdateTime</h3>
+                <h3 id="updateTimeTitle" class="text-lg font-semibold text-gray-700">Last UpdateTime</h3>
                 <div class="w-10 h-10 rounded-full bg-info/10 flex items-center justify-center">
                     <i class="fa fa-clock-o text-info"></i>
                 </div>
@@ -201,7 +202,7 @@
                 class="p-4 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div class="flex items-center space-x-2">
                 <i class="fa fa-table text-primary"></i>
-                <h3 class="font-semibold text-gray-700">Query Result</h3>
+                <h3 id="resultTitle" class="font-semibold text-gray-700">Query Result</h3>
             </div>
             <div class="flex items-center space-x-2 w-full sm:w-auto">
                 <div class="relative flex-grow sm:flex-grow-0">
@@ -239,7 +240,7 @@
                     <td colspan="100" class="py-12 text-center text-gray-500">
                         <div class="inline-flex flex-col items-center">
                             <i class="fa fa-spinner fa-spin text-3xl mb-3 text-primary"></i>
-                            <p>Please enter the query SQL and execute the query ..</p>
+                            <p id="loadingText">Please enter the query SQL and execute the query ..</p>
                         </div>
                     </td>
                 </tr>
@@ -251,11 +252,11 @@
         <div id="emptyState" class="hidden p-12 text-center">
             <div class="inline-flex flex-col items-center">
                 <i class="fa fa-search text-5xl text-gray-300 mb-4"></i>
-                <h4 class="text-lg font-semibold text-gray-700 mb-2">No matching data found</h4>
-                <p class="text-gray-500 max-w-md">Try adjusting search criteria or refreshing data</p>
+                <h4 id="emptyTitle" class="text-lg font-semibold text-gray-700 mb-2">No matching data found</h4>
+                <p id="emptyText" class="text-gray-500 max-w-md">Try adjusting search criteria or refreshing data</p>
                 <button id="resetSearchBtn"
                         class="mt-4 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors duration-200 hover-lift">
-                    <i class="fa fa-refresh mr-2"></i>Reset Search
+                    <i class="fa fa-refresh mr-2"></i><span id="resetText">Reset Search</span>
                 </button>
             </div>
         </div>
@@ -265,12 +266,94 @@
 <!-- 页脚 -->
 <footer class="bg-white border-t border-gray-200 py-6 mt-12">
     <div class="container mx-auto px-4 text-center text-gray-600">
-        <p>© 2025 Elasticsearch SQL Query System.</p>
+        <p id="footerText">© 2025 Elasticsearch SQL Query System.</p>
     </div>
 </footer>
 
 <!-- JavaScript -->
 <script>
+    // 语言资源对象
+    const languageResources = {
+        en: {
+            pageTitle: "Elasticsearch SQL Query",
+            refreshText: "Refresh",
+            languageText: "English",
+            sqlLabel: "Query SQL",
+            charText: "Char",
+            queryText: "Query",
+            clearText: "Clear",
+            statusText: "Ready",
+            columnCountTitle: "Column Count",
+            rowsCountTitle: "Rows Count",
+            updateTimeTitle: "Last UpdateTime",
+            resultTitle: "Query Result",
+            loadingText: "Please enter the query SQL and execute the query ..",
+            emptyTitle: "No matching data found",
+            emptyText: "Try adjusting search criteria or refreshing data",
+            resetText: "Reset Search",
+            footerText: "© 2025 Elasticsearch SQL Query System.",
+            searchPlaceholder: "Search...",
+            apiError: "Query Error: ",
+            noSqlError: "Input Query SQL",
+            loading: "Executing query ...",
+            success: "Query Successful",
+            apiRequestError: "Request Failure，Status: ",
+            apiFormatError: "The API returned data format is incorrect, expected to include headers and rows attributes",
+            sqlPlaceholder: "Input Query SQL...",
+            queryFailed: "Query failed, please check SQL syntax or API connection"
+        },
+        zh: {
+            pageTitle: "Elasticsearch SQL 查询",
+            refreshText: "刷新数据",
+            languageText: "中文",
+            sqlLabel: "查询SQL",
+            charText: "字符",
+            queryText: "查询",
+            clearText: "清除",
+            statusText: "就绪",
+            columnCountTitle: "字段列数",
+            rowsCountTitle: "数据行数",
+            updateTimeTitle: "最后更新时间",
+            resultTitle: "查询结果",
+            loadingText: "请输入查询SQL并执行查询..",
+            emptyTitle: "未找到匹配数据",
+            emptyText: "尝试调整搜索条件或刷新数据",
+            resetText: "重置搜索",
+            footerText: "© 2025 Elasticsearch SQL查询系统。",
+            searchPlaceholder: "搜索...",
+            apiError: "查询错误: ",
+            noSqlError: "请输入查询SQL",
+            loading: "正在执行查询...",
+            success: "查询成功",
+            apiRequestError: "请求失败，状态: ",
+            apiFormatError: "API返回的数据格式不正确，期望包含headers和rows属性",
+            sqlPlaceholder: "输入查询SQL...",
+            queryFailed: "查询失败，请检查SQL语法或API连接"
+        }
+    };
+
+    // 页面元素映射，便于批量更新文本
+    const elementMap = {
+        pageTitle: document.getElementById('pageTitle'),
+        refreshText: document.getElementById('refreshText'),
+        languageText: document.getElementById('languageText'),
+        sqlLabel: document.getElementById('sqlLabel'),
+        charText: document.getElementById('charText'),
+        queryText: document.getElementById('queryText'),
+        clearText: document.getElementById('clearText'),
+        statusText: document.getElementById('statusText'),
+        columnCountTitle: document.getElementById('columnCountTitle'),
+        rowsCountTitle: document.getElementById('rowsCountTitle'),
+        updateTimeTitle: document.getElementById('updateTimeTitle'),
+        resultTitle: document.getElementById('resultTitle'),
+        loadingText: document.getElementById('loadingText'),
+        emptyTitle: document.getElementById('emptyTitle'),
+        emptyText: document.getElementById('emptyText'),
+        resetText: document.getElementById('resetText'),
+        footerText: document.querySelector('footer p'),
+        searchInput: document.getElementById('searchInput'), // 占位符需要特殊处理
+        sqlInput: document.getElementById('apiParams') // 添加SQL文本框到元素映射
+    };
 
     // 页面元素
     const apiParams = document.getElementById('apiParams');
@@ -279,7 +362,6 @@
     const charCount = document.getElementById('charCount');
     const apiStatus = document.getElementById('apiStatus');
     const statusIndicator = document.getElementById('statusIndicator');
-    const statusText = document.getElementById('statusText');
     const tableBody = document.getElementById('tableBody');
     const refreshBtn = document.getElementById('refreshBtn');
     const searchInput = document.getElementById('searchInput');
@@ -293,6 +375,12 @@
     const lastUpdated = document.getElementById('lastUpdated');
     const esHost = window.location.hostname || 'localhost';
     const esPort = window.location.port || '9200';
+    const languageBtn = document.getElementById('languageBtn');
+    const languageDropdown = document.getElementById('languageDropdown');
+    const languageLinks = languageDropdown.querySelectorAll('a');
+
+    // 当前语言状态
+    let currentLanguage = 'en';
 
     // 表格数据和状态
     let tableData = {
@@ -310,7 +398,7 @@
 
     // 格式化日期时间
     function formatDateTime(date) {
-        return new Intl.DateTimeFormat('zh-CN', {
+        return new Intl.DateTimeFormat(currentLanguage === 'zh' ? 'zh-CN' : 'en-US', {
             year: 'numeric',
             month: '2-digit',
             day: '2-digit',
@@ -449,18 +537,18 @@
             const sql = apiParams.value.trim();
 
             if (!sql) {
-                updateApiStatus('error', 'Input Query SQL');
+                updateApiStatus('error', languageResources[currentLanguage].noSqlError);
                 return;
             }
 
             // 显示加载状态
-            updateApiStatus('loading', 'Executing query ...');
+            updateApiStatus('loading', languageResources[currentLanguage].loading);
             tableBody.innerHTML = `
           <tr>
             <td colspan="100" class="py-12 text-center text-gray-500">
               <div class="inline-flex flex-col items-center">
                 <i class="fa fa-spinner fa-spin text-3xl mb-3 text-primary"></i>
-                <p>正在执行查询...</p>
+                <p>${languageResources[currentLanguage].loadingText}</p>
               </div>
             </td>
           </tr>
@@ -488,7 +576,7 @@
                 updateStats();
                 generateTableHeader();
                 generateTableContent();
-                updateApiStatus('success', 'Query Successful');
+                updateApiStatus('success', languageResources[currentLanguage].success);
 
                 // 添加淡入动画
                 tableBody.querySelectorAll('tr').forEach((tr, index) => {
@@ -503,17 +591,17 @@
                 });
 
             } else {
-                throw new Error('The API returned data format is incorrect, expected to include headers and rows attributes');
+                throw new Error(languageResources[currentLanguage].apiFormatError);
             }
         } catch (error) {
             // 显示错误信息
-            updateApiStatus('error', `Query Error: ${error.message}`);
+            updateApiStatus('error', `${languageResources[currentLanguage].apiError}${error.message}`);
             tableBody.innerHTML = `
           <tr>
             <td colspan="100" class="py-12 text-center text-gray-500">
               <div class="inline-flex flex-col items-center">
                 <i class="fa fa-exclamation-circle text-3xl mb-3 text-danger"></i>
-                <p>查询执行失败，请检查SQL语法或API连接</p>
+                <p>${languageResources[currentLanguage].queryFailed}</p>
               </div>
             </td>
           </tr>
@@ -534,7 +622,7 @@
             });
 
             if (!response.ok) {
-                throw new Error(`Request Failure，Status: ${response.status}, ${response.body}`);
+                throw new Error(`${languageResources[currentLanguage].apiRequestError}${response.status}, ${response.body}`);
             }
 
             const data = await response.json();
@@ -542,15 +630,64 @@
             if (data.headers && Array.isArray(data.headers) && data.rows && Array.isArray(data.rows)) {
                 return data; // 返回包含headers和rows的对象
             } else {
-                throw new Error('The API returned data format that did not meet expectations, expected to include headers and rows attributes');
+                throw new Error(languageResources[currentLanguage].apiFormatError);
             }
         } catch (error) {
-            throw new Error(`API Error: ${error.message}`);
+            throw new Error(`${languageResources[currentLanguage].apiError}${error.message}`);
+        }
+    }
+
+    // 更新语言显示
+    function updateLanguageDisplay(lang) {
+        currentLanguage = lang;
+        document.documentElement.lang = lang;
+
+        // 保存语言状态到本地存储
+        localStorage.setItem('esSqlQueryLanguage', lang);
+
+        // 更新语言按钮文本
+        languageResources[lang].languageText === 'English' ?
+            languageBtn.querySelector('#languageText').textContent = 'English' :
+            languageBtn.querySelector('#languageText').textContent = '中文';
+
+        // 更新所有文本元素
+        for (const [key, element] of Object.entries(elementMap)) {
+            if (key === 'searchInput') {
+                element.placeholder = languageResources[lang].searchPlaceholder;
+            } else if (key === 'sqlInput') {
+                element.placeholder = languageResources[lang].sqlPlaceholder;
+            } else if (element) {
+                element.textContent = languageResources[lang][key];
+            }
+        }
+
+        // 如果有API状态，更新错误信息文本
+        if (statusText.textContent.startsWith(languageResources['en'].apiError) && lang === 'zh') {
+            statusText.textContent = statusText.textContent.replace(
+                languageResources['en'].apiError,
+                languageResources['zh'].apiError
+            );
+        } else if (statusText.textContent.startsWith(languageResources['zh'].apiError) && lang === 'en') {
+            statusText.textContent = statusText.textContent.replace(
+                languageResources['zh'].apiError,
+                languageResources['en'].apiError
+            );
         }
     }
 
     // 初始化页面
     function init() {
+        // 检查本地存储中的语言设置，若无则使用默认英文
+        const savedLanguage = localStorage.getItem('esSqlQueryLanguage');
+        if (savedLanguage && languageResources[savedLanguage]) {
+            currentLanguage = savedLanguage;
+        } else {
+            currentLanguage = 'en';
+        }
+
+        // 初始化语言显示
+        updateLanguageDisplay(currentLanguage);
+
         // 初始化字符计数
         updateCharCount();
 
@@ -588,6 +725,28 @@
             }
         });
 
+        // 语言切换按钮事件
+        languageBtn.addEventListener('click', () => {
+            languageDropdown.classList.toggle('hidden');
+        });
+
+        // 点击页面其他地方关闭语言下拉菜单
+        document.addEventListener('click', (e) => {
+            if (!languageBtn.contains(e.target) && !languageDropdown.contains(e.target)) {
+                languageDropdown.classList.add('hidden');
+            }
+        });
+
+        // 语言选项点击事件
+        languageLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const lang = link.getAttribute('data-lang');
+                updateLanguageDisplay(lang);
+                languageDropdown.classList.add('hidden');
+            });
+        });
+
         // 添加滚动时导航栏效果
         window.addEventListener('scroll', () => {
             const header = document.querySelector('header');
@@ -605,5 +764,4 @@
     document.addEventListener('DOMContentLoaded', init);
 </script>
 </body>
-
 </html>
