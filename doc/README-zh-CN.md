@@ -110,10 +110,10 @@ http://localhost:9200/es_sql_plugin
     - ✅ SHOW TABLES LIKE 'PATTERN'
 - ✅ INSERT
     - ✅ INSERT INTO [_id, F1, F2] TABLE_NAME VALUES ('V1','V2','V3'), ('V4','V5','V6')
-        - If the `FIELD_NAMES` contains `_id`, it is considered a `doc_id`
+        - 如果字段名中包含`_id`,则认为这个值为`文档ID`
 - ✅ DELETE
     - ✅ DELETE FROM TABLE_NAME [WHERE]
-        - If `WHERE` is empty, delete the entire index data
+        - 如果`WHERE`是空, 则会删除整个索引的数据
 - ✅ DROP
     - ✅ DROP TABLE TABLE_NAME
 
