@@ -69,7 +69,7 @@ public class EsSqlRestAction extends BaseRestHandler {
         EqlParserDriver eqlParserDriver = new EqlParserDriver();
         LogicalPlan plan = eqlParserDriver.parser(sql);
         ActionPlanFactory actionPlanFactory = ActionPlanFactory.getInstance();
-        ActionPlan action = actionPlanFactory.createAction(plan);
+        ActionPlan action = actionPlanFactory.createAction(null, plan);
         ActionRequest actionRequest = action.explain();
         XContentBuilder xContentBuilder = XContentFactory.jsonBuilder().prettyPrint();
         if (request.path().endsWith("/explain")) {

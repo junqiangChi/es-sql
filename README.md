@@ -113,8 +113,12 @@ Configuration parameters that can be set when using jdbc connection
     - ✅ SHOW TABLES
     - ✅ SHOW TABLES [FROM | IN] TABLE_NAME
     - ✅ SHOW TABLES LIKE 'PATTERN'
+- ✅ INSERT
+    - ✅ INSERT INTO [_id, F1, F2] TABLE_NAME VALUES ('V1','V2','V3'), ('V4','V5','V6')
+        - If the `FIELDS` contains `_id`, it is considered a `doc_id`
 - ✅ DELETE
     - ✅ DELETE FROM TABLE_NAME [WHERE]
+        - If `WHERE` is empty, delete the entire index data
 - ✅ DROP
     - ✅ DROP TABLE TABLE_NAME
 

@@ -26,6 +26,8 @@ public class ExecutorFactory {
             return new ShowExecutor(client);
         } else if (plan instanceof Drop) {
             return new DropExecutor(client);
+        } else if (plan instanceof Insert) {
+            return new InsertExecutor(client);
         }
         throw new EsSqlParseException("Unsupported plan type: " + plan.getClass().getName());
     }

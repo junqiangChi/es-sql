@@ -35,6 +35,8 @@ public class HandlerFactory {
             return new ShowHandler();
         } else if (plan instanceof Drop) {
             return new DropHandler();
+        } else if (plan instanceof Insert) {
+            return new InsertHandler();
         }
         throw new EsSqlParseException("Unsupported plan type: " + plan.getClass().getName());
     }

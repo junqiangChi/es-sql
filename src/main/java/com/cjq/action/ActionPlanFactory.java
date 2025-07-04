@@ -1,5 +1,6 @@
 package com.cjq.action;
 
+import com.cjq.domain.Client;
 import com.cjq.exception.EsSqlParseException;
 import com.cjq.plan.logical.*;
 
@@ -20,7 +21,7 @@ public class ActionPlanFactory {
         return actionPlanFactory;
     }
 
-    public ActionPlan createAction(LogicalPlan plan) {
+    public ActionPlan createAction(Client client, LogicalPlan plan) {
         if (plan instanceof Query) {
             if (((Query) plan).isAgg()) {
                 return new AggQueryActionPlan(plan);
@@ -33,6 +34,8 @@ public class ActionPlanFactory {
             return new ShowActionPlan(plan);
         } else if (plan instanceof Drop) {
             return new DropActionPlan(plan);
+        } else if (plan instanceof Insert) {
+            return new InsertActionPlan(client, plan);
         }
         throw new EsSqlParseException("Unsupported logical plan type: " + plan.getClass().getName());
 

@@ -29,7 +29,7 @@ public class AggQueryHandler extends DefaultQueryHandler {
         if (query.getGroupBy() != null) {
             List<Field> groupByFields = query.getGroupBy().getGroupByFields();
             Terms rootTerms = searchResponse.getAggregations().get(GROUP_BY_PREFIX + groupByFields.get(0).getFieldName());
-            HashMap<String, List<Object>> groupValues = new HashMap<>();
+            HashMap<String, List<Object>> groupValues = new LinkedHashMap<>();
             handlerTermsBuckets(rootTerms, groupByFields, 0, query, groupValues);
             List<String> header = query.getSelect().getFields().stream().map(field -> field.isFunction() ? field.getAlias() != null ? field.getAlias() : field.getFuncName() + "(" + field.getFieldName() + ")" : field.getFieldName()).collect(Collectors.toList());
             List<List<Object>> lines = new ArrayList<>();

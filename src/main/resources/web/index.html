@@ -1,497 +1,874 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Elasticsearch SQL</title>
-    <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
-    <!-- 引入Tailwind CSS -->
+    <title>ES SQL Query Tool</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 引入Font Awesome -->
     <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-    <!-- 配置Tailwind自定义主题 -->
+    <!-- Tailwind 配置 -->
     <script>
         tailwind.config = {
             theme: {
                 extend: {
                     colors: {
                         primary: '#165DFF',
-                        secondary: '#6B7280',
+                        secondary: '#0FC6C2',
                         success: '#00B42A',
                         warning: '#FF7D00',
                         danger: '#F53F3F',
-                        info: '#86909C',
-                        light: '#F2F3F5',
                         dark: '#1D2129',
+                        light: '#F2F3F5'
                     },
                     fontFamily: {
-                        inter: ['Inter', 'system-ui', 'sans-serif'],
+                        inter: ['Inter', 'sans-serif'],
                     },
                 },
             }
         }
     </script>
 
-    <!-- 自定义工具类 -->
     <style type="text/tailwindcss">
         @layer utilities {
             .content-auto {
                 content-visibility: auto;
             }
 
-            .table-shadow {
-                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            .bg-gradient-primary {
+                background: linear-gradient(135deg, #165DFF 0%, #0A44C0 100%);
             }
 
-            .animate-fadeIn {
-                animation: fadeIn 0.5s ease-in-out;
+            .text-shadow {
+                text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
             }
 
-            .animate-slideUp {
-                animation: slideUp 0.5s ease-out;
+            .transition-all-300 {
+                transition: all 300ms ease-in-out;
             }
 
-            .hover-lift {
-                transition: transform 0.2s ease, box-shadow 0.2s ease;
+            .card-hover {
+                @apply hover:shadow-lg hover:-translate-y-1 transition-all duration-300;
             }
 
-            .hover-lift:hover {
-                transform: translateY(-2px);
-                box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12);
+            .table-cell-border {
+                @apply border-r border-gray-200;
             }
 
-            .api-param-card {
-                transition: all 0.3s ease;
+            .table-header-cell {
+                @apply bg-primary/10 text-primary font-semibold py-4;
             }
 
-            .api-param-card:hover {
-                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            .pagination-active {
+                @apply bg-primary text-white;
+            }
+
+            .animate-fade-in {
+                animation: fadeIn 0.3s ease-out forwards;
+            }
+
+            .sortable-header {
+                @apply cursor-pointer hover:bg-primary/20 transition-colors duration-150;
+            }
+
+            /* 添加表格对齐样式 */
+            .table-cell-align-left {
+                @apply text-left;
+            }
+
+            .table-cell-align-right {
+                @apply text-right;
+            }
+
+            .table-cell-align-center {
+                @apply text-center;
             }
         }
 
         @keyframes fadeIn {
             from {
                 opacity: 0;
+                transform: translateY(10px);
             }
             to {
                 opacity: 1;
+                transform: translateY(0);
             }
         }
 
-        @keyframes slideUp {
-            from {
-                transform: translateY(20px);
-                opacity: 0;
-            }
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
+        /* 添加自定义表格样式 */
+        .result-table {
+            @apply min-w-full divide-y divide-gray-200;
+        }
+
+        .result-table thead th {
+            @apply px-6 py-4 text-left text-xs font-medium text-primary tracking-wider table-header-cell table-cell-border sortable-header;
+        }
+
+        .result-table tbody td {
+            @apply px-6 py-4 whitespace-nowrap text-sm text-gray-500 border-b border-gray-200;
+        }
+
+        .result-table tbody tr:hover {
+            @apply bg-gray-50;
+        }
+
+        /* 数字列对齐样式 */
+        .number-cell {
+            @apply text-left font-mono;
         }
     </style>
 </head>
-<body class="bg-gray-50 font-inter text-gray-800 min-h-screen flex flex-col">
-<!-- 顶部导航栏 -->
-<header class="bg-white shadow-sm sticky top-0 z-10 transition-all duration-300">
-    <div class="container mx-auto px-4 py-4 flex items-center justify-between">
+
+<body class="font-inter bg-gray-50 text-dark min-h-screen flex flex-col">
+<div id="toastContainer" class="fixed top-4 right-4 z-[9999]"></div>
+<!-- 导航栏 -->
+<nav class="bg-white shadow-md sticky top-0 z-50">
+    <div class="container mx-auto px-4 py-3 flex justify-between items-center">
         <div class="flex items-center space-x-2">
-            <i class="fa fa-table text-primary text-2xl"></i>
-            <h1 id="pageTitle" class="text-xl font-bold text-gray-800">Elasticsearch SQL Query</h1>
+            <i class="fa fa-search text-primary text-2xl"></i>
+            <h1 class="text-xl font-bold text-primary"><span data-lang="app-title">ES SQL Query Tool</span></h1>
         </div>
         <div class="flex items-center space-x-4">
-            <button id="refreshBtn"
-                    class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors duration-200 flex items-center space-x-2 hover-lift">
-                <i class="fa fa-refresh"></i>
-                <span id="refreshText">Refresh</span>
-            </button>
             <div class="relative">
-                <button id="languageBtn" class="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors duration-200 flex items-center space-x-2 hover-lift">
-                    <i class="fa fa-language"></i>
-                    <span id="languageText">English</span>
+                <select id="langToggle"
+                        class="appearance-none bg-gray-100 border border-gray-200 rounded-lg py-2 pl-3 pr-8 focus:outline-none focus:ring-2 focus:ring-primary/50">
+                    <option value="en">English</option>
+                    <option value="zh">中文</option>
+                </select>
+                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-dark">
                     <i class="fa fa-chevron-down text-xs"></i>
-                </button>
-                <div id="languageDropdown" class="absolute right-0 mt-2 w-40 bg-white rounded-md shadow-lg py-1 hidden z-10">
-                    <a href="#" data-lang="en" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">English</a>
-                    <a href="#" data-lang="zh" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">中文</a>
                 </div>
             </div>
         </div>
     </div>
-</header>
+</nav>
 
-<!-- 主要内容区 -->
+<!-- 主内容区 -->
 <main class="flex-grow container mx-auto px-4 py-8">
-    <!-- API参数输入卡片 -->
-    <div class="bg-white rounded-xl shadow-md mb-8 p-6 api-param-card animate-slideUp" style="animation-delay: 0.1s;">
-        <div class="flex flex-col md:flex-row items-start md:items-center gap-4">
-            <div class="flex-grow w-full">
-                <label for="apiParams" id="sqlLabel" class="block text-sm font-medium text-gray-700 mb-2">
-                    <i class="fa fa-file-text-o mr-2"></i>Query SQL
-                </label>
+    <!-- 查询区域 -->
+    <div class="bg-white rounded-xl shadow-md p-6 mb-8 transform transition-all duration-200 hover:shadow-lg">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-semibold text-dark flex items-center">
+                <i class="fa fa-code text-primary mr-2"></i>
+                <span data-lang="query-area">Query Area</span>
+            </h2>
+            <div class="flex space-x-2">
+                <button id="clearBtn"
+                        class="px-3 py-1.5 bg-gray-100 hover:bg-gray-300 text-dark rounded-lg transition-all-300 flex items-center">
+                    <i class="fa fa-trash-o mr-1"></i>
+                    <span data-lang="clear">Clear</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="mb-4">
+            <div class="relative">
+          <textarea id="sqlQuery"
+                    class="w-full h-32 p-4 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 font-mono"
+                    placeholder="Enter SQL query...">select * from my_index</textarea>
+                <div class="absolute right-3 bottom-3 text-xs text-gray-400">
+                    <span id="charCount">20</span> <span data-lang="characters">characters</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex justify-end">
+            <button id="executeBtn"
+                    class="bg-primary hover:bg-primary/90 text-white px-6 py-2 rounded-lg shadow-md hover:shadow-lg transition-all-300 flex items-center">
+                <i class="fa fa-play mr-2"></i>
+                <span data-lang="execute">Execute Query</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- 结果区域 -->
+    <div id="resultContainer"
+         class="bg-white rounded-xl shadow-md p-6 mb-8 hidden transform transition-all duration-300 hover:shadow-lg">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-semibold text-dark flex items-center">
+                <i class="fa fa-table text-primary mr-2"></i>
+                <span data-lang="result">Query Result</span>
+                <span id="resultCount" class="ml-2 text-sm text-gray-500">(0 <span
+                        data-lang="records">records</span>)</span>
+            </h2>
+            <div class="flex space-x-2">
+                <button id="copyBtn"
+                        class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-dark rounded-lg transition-all-300 flex items-center">
+                    <i class="fa fa-copy mr-1"></i>
+                    <span data-lang="copy">Copy</span>
+                </button>
                 <div class="relative">
-            <textarea id="apiParams"
-                      class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-200 min-h-[100px] resize-y"
-                      placeholder='Input Query SQL...'></textarea>
-                    <div class="absolute bottom-2 right-2 text-xs text-gray-400">
-                        <span id="charCount">0</span> <span id="charText">Char</span>
+                    <button id="downloadBtn"
+                            class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-dark rounded-lg transition-all-300 flex items-center">
+                        <i class="fa fa-download mr-1"></i>
+                        <span data-lang="download">Download</span>
+                    </button>
+                    <div id="downloadMenu"
+                         class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 hidden z-10">
+                        <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" data-format="csv">CSV</a>
+                        <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" data-format="json">JSON</a>
+                        <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" data-format="excel">Excel</a>
                     </div>
                 </div>
             </div>
-            <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-                <button id="callApiBtn"
-                        class="px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors duration-200 flex items-center justify-center space-x-2 hover-lift">
-                    <i class="fa fa-play-circle"></i>
-                    <span id="queryText">Query</span>
-                </button>
-                <button id="clearParamsBtn"
-                        class="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors duration-200 flex items-center justify-center space-x-2 hover-lift">
-                    <i class="fa fa-eraser"></i>
-                    <span id="clearText">Clear</span>
-                </button>
-            </div>
         </div>
 
-        <!-- 接口状态和结果 -->
-        <div id="apiStatus" class="mt-4 hidden">
-            <div class="flex items-center text-sm">
-                <span id="statusIndicator" class="w-3 h-3 rounded-full mr-2 bg-gray-300"></span>
-                <span id="statusText">Ready</span>
-            </div>
-        </div>
-    </div>
-
-    <!-- 数据统计卡片 -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 animate-slideUp" style="animation-delay: 0.1s;">
-        <div class="bg-white rounded-xl p-6 shadow-md hover-lift">
-            <div class="flex items-center justify-between mb-4">
-                <h3 id="columnCountTitle" class="text-lg font-semibold text-gray-700">Column Count</h3>
-                <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                    <i class="fa fa-list-alt text-primary"></i>
-                </div>
-            </div>
-            <p id="fieldCount" class="text-3xl font-bold text-gray-800">--</p>
-        </div>
-
-        <div class="bg-white rounded-xl p-6 shadow-md hover-lift">
-            <div class="flex items-center justify-between mb-4">
-                <h3 id="rowsCountTitle" class="text-lg font-semibold text-gray-700">Rows Count</h3>
-                <div class="w-10 h-10 rounded-full bg-success/10 flex items-center justify-center">
-                    <i class="fa fa-database text-success"></i>
-                </div>
-            </div>
-            <p id="rowCount" class="text-3xl font-bold text-gray-800">--</p>
-        </div>
-
-        <div class="bg-white rounded-xl p-6 shadow-md hover-lift">
-            <div class="flex items-center justify-between mb-4">
-                <h3 id="updateTimeTitle" class="text-lg font-semibold text-gray-700">Last UpdateTime</h3>
-                <div class="w-10 h-10 rounded-full bg-info/10 flex items-center justify-center">
-                    <i class="fa fa-clock-o text-info"></i>
-                </div>
-            </div>
-            <p id="lastUpdated" class="text-3xl font-bold text-gray-800">--</p>
-        </div>
-    </div>
-
-    <!-- 数据表格区域 -->
-    <div class="bg-white rounded-xl shadow-lg overflow-hidden table-shadow animate-slideUp"
-         style="animation-delay: 0.2s;">
-        <!-- 表格工具栏 -->
-        <div
-                class="p-4 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div class="flex items-center space-x-2">
-                <i class="fa fa-table text-primary"></i>
-                <h3 id="resultTitle" class="font-semibold text-gray-700">Query Result</h3>
-            </div>
-            <div class="flex items-center space-x-2 w-full sm:w-auto">
-                <div class="relative flex-grow sm:flex-grow-0">
-                    <input type="text" id="searchInput" placeholder="Search..."
-                           class="w-full sm:w-64 pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-200">
-                    <i class="fa fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
-                </div>
-                <div class="flex items-center space-x-1">
-                    <button id="prevPageBtn"
-                            class="px-3 py-1.5 border border-gray-200 rounded-l-lg text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-                            disabled>
-                        <i class="fa fa-chevron-left"></i>
-                    </button>
-                    <span id="pageInfo" class="px-3 py-1.5 border-t border-b border-gray-200 text-gray-700">1 / 1</span>
-                    <button id="nextPageBtn"
-                            class="px-3 py-1.5 border border-gray-200 rounded-r-lg text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-                            disabled>
-                        <i class="fa fa-chevron-right"></i>
-                    </button>
+        <!-- 搜索框 -->
+        <div class="mb-4">
+            <div class="relative">
+                <input type="text" id="searchInput" placeholder="Search..."
+                       class="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 pl-10">
+                <div class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                    <i class="fa fa-search"></i>
                 </div>
             </div>
         </div>
 
-        <!-- 表格内容 -->
+        <!-- 结果分布统计 -->
+        <div id="resultStats" class="mb-4 bg-gray-50 p-4 rounded-lg hidden">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="flex items-center">
+                    <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mr-3">
+                        <i class="fa fa-database text-primary"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-500" data-lang="total-records">Total Records</p>
+                        <p class="text-lg font-semibold" id="totalRecords">0</p>
+                    </div>
+                </div>
+                <div class="flex items-center">
+                    <div class="w-10 h-10 rounded-full bg-secondary/10 flex items-center justify-center mr-3">
+                        <i class="fa fa-columns text-secondary"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-500" data-lang="total-columns">Total Columns</p>
+                        <p class="text-lg font-semibold" id="totalColumns">0</p>
+                    </div>
+                </div>
+                <div class="flex items-center">
+                    <div class="w-10 h-10 rounded-full bg-success/10 flex items-center justify-center mr-3">
+                        <i class="fa fa-filter text-success"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-500" data-lang="filtered-records">Filtered Records</p>
+                        <p class="text-lg font-semibold" id="filteredRecords">0</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="overflow-x-auto">
-            <table class="w-full">
+            <table id="resultTable" class="result-table">
                 <thead>
-                <tr class="bg-gray-50 text-left">
-                    <!-- 表头将通过JavaScript动态生成 -->
-                </tr>
+                <tr id="tableHeader"></tr>
                 </thead>
-                <tbody id="tableBody">
-                <!-- 表格内容将通过JavaScript动态生成 -->
-                <tr>
-                    <td colspan="100" class="py-12 text-center text-gray-500">
-                        <div class="inline-flex flex-col items-center">
-                            <i class="fa fa-spinner fa-spin text-3xl mb-3 text-primary"></i>
-                            <p id="loadingText">Please enter the query SQL and execute the query ..</p>
-                        </div>
-                    </td>
-                </tr>
-                </tbody>
+                <tbody id="tableBody" class="bg-white divide-y divide-gray-200"></tbody>
             </table>
         </div>
 
-        <!-- 空状态提示 -->
-        <div id="emptyState" class="hidden p-12 text-center">
-            <div class="inline-flex flex-col items-center">
-                <i class="fa fa-search text-5xl text-gray-300 mb-4"></i>
-                <h4 id="emptyTitle" class="text-lg font-semibold text-gray-700 mb-2">No matching data found</h4>
-                <p id="emptyText" class="text-gray-500 max-w-md">Try adjusting search criteria or refreshing data</p>
-                <button id="resetSearchBtn"
-                        class="mt-4 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors duration-200 hover-lift">
-                    <i class="fa fa-refresh mr-2"></i><span id="resetText">Reset Search</span>
+        <!-- 分页控件 -->
+        <div id="paginationControls" class="mt-6 flex flex-col md:flex-row justify-between items-center hidden">
+            <div class="mb-4 md:mb-0">
+                <label for="pageSize" class="text-sm text-gray-500 mr-2" data-lang="show">Show</label>
+                <select id="pageSize"
+                        class="bg-gray-50 border border-gray-200 rounded-lg py-1 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
+                    <option value="10">10</option>
+                    <option value="20">20</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select>
+                <span class="text-sm text-gray-500 ml-2" data-lang="entries">entries</span>
+            </div>
+
+            <div class="flex items-center space-x-1">
+                <button id="firstPage"
+                        class="px-3 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <i class="fa fa-angle-double-left"></i>
                 </button>
+                <button id="prevPage"
+                        class="px-3 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <i class="fa fa-angle-left"></i>
+                </button>
+                <div id="pageNumbers" class="flex"></div>
+                <button id="nextPage"
+                        class="px-3 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <i class="fa fa-angle-right"></i>
+                </button>
+                <button id="lastPage"
+                        class="px-3 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <i class="fa fa-angle-double-right"></i>
+                </button>
+            </div>
+        </div>
+
+        <div id="emptyResult" class="py-12 flex flex-col items-center justify-center hidden">
+            <div class="w-16 h-16 mb-4 text-gray-300">
+                <i class="fa fa-search fa-4x"></i>
+            </div>
+            <h3 class="text-lg font-medium text-gray-900 mb-1" data-lang="no-results">No results found</h3>
+            <p class="text-gray-500 max-w-md text-center" data-lang="no-results-desc">Try modifying your query or check
+                the
+                syntax</p>
+            <button id="clearSearchBtn"
+                    class="mt-4 px-4 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors duration-150">
+                <i class="fa fa-times-circle mr-1"></i>
+                <span data-lang="clear-search">Clear Search</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- 加载中 -->
+    <div id="loadingIndicator" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white p-6 rounded-xl shadow-lg flex items-center">
+            <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mr-4"></div>
+            <div>
+                <h3 class="font-semibold text-dark" data-lang="loading">Executing query...</h3>
+                <p class="text-gray-500 text-sm" data-lang="please-wait">Please wait...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 错误提示 -->
+    <div id="errorContainer"
+         class="bg-white rounded-xl shadow-md p-6 mb-8 hidden transform transition-all duration-300 hover:shadow-lg">
+        <div class="flex items-start">
+            <div class="flex-shrink-0 pt-0.5">
+                <i class="fa fa-exclamation-triangle text-danger text-xl"></i>
+            </div>
+            <div class="ml-3 flex-1">
+                <h3 class="text-lg font-medium text-danger" data-lang="error-occurred">An error occurred while executing
+                    the
+                    query</h3>
+                <div class="mt-2 text-sm text-gray-700">
+                    <p id="errorMessage">Error message will be displayed here</p>
+                </div>
+                <div class="mt-4">
+                    <pre id="errorDetails" class="bg-gray-50 p-3 rounded-lg text-xs font-mono overflow-x-auto"></pre>
+                </div>
             </div>
         </div>
     </div>
 </main>
 
 <!-- 页脚 -->
-<footer class="bg-white border-t border-gray-200 py-6 mt-12">
-    <div class="container mx-auto px-4 text-center text-gray-600">
-        <p id="footerText">© 2025 Elasticsearch SQL Query System.</p>
+<footer class="bg-dark text-white py-6">
+    <div class="container mx-auto px-4">
+        <div class="flex flex-col md:flex-row justify-between items-center">
+            <div class="mb-4 md:mb-0">
+                <div class="flex items-center space-x-2">
+                    <i class="fa fa-search text-primary"></i>
+                    <span class="font-semibold" data-lang="app-title">ES SQL Query Tool</span>
+                </div>
+            </div>
+            <div class="flex space-x-4">
+                <a href="https://github.com/junqiangChi/es-sql"
+                   class="text-gray-400 hover:text-white transition-colors duration-300">
+                    <i class="fa fa-github text-xl"></i>
+                </a>
+            </div>
+        </div>
     </div>
 </footer>
 
-<!-- JavaScript -->
 <script>
-    // 语言资源对象
-    const languageResources = {
-        en: {
-            pageTitle: "Elasticsearch SQL Query",
-            refreshText: "Refresh",
-            languageText: "English",
-            sqlLabel: "Query SQL",
-            charText: "Char",
-            queryText: "Query",
-            clearText: "Clear",
-            statusText: "Ready",
-            columnCountTitle: "Column Count",
-            rowsCountTitle: "Rows Count",
-            updateTimeTitle: "Last UpdateTime",
-            resultTitle: "Query Result",
-            loadingText: "Please enter the query SQL and execute the query ..",
-            emptyTitle: "No matching data found",
-            emptyText: "Try adjusting search criteria or refreshing data",
-            resetText: "Reset Search",
-            footerText: "© 2025 Elasticsearch SQL Query System.",
-            searchPlaceholder: "Search...",
-            apiError: "Query Error: ",
-            noSqlError: "Input Query SQL",
-            loading: "Executing query ...",
-            success: "Query Successful",
-            apiRequestError: "Request Failure，Status: ",
-            apiFormatError: "The API returned data format is incorrect, expected to include headers and rows attributes",
-            sqlPlaceholder: "Input Query SQL...",
-            queryFailed: "Query failed, please check SQL syntax or API connection"
+    // 语言包
+    const translations = {
+        'en': {
+            'app-title': 'ES SQL Query Tool',
+            'app-desc': 'Efficiently query Elasticsearch data',
+            'query-area': 'Query Area',
+            'clear': 'Clear',
+            'characters': 'characters',
+            'execute': 'Execute Query',
+            'result': 'Query Result',
+            'records': 'records',
+            'copy': 'Copy',
+            'download': 'Download',
+            'no-results': 'No results found',
+            'no-results-desc': 'Try modifying your query or check the syntax',
+            'loading': 'Executing query...',
+            'please-wait': 'Please wait...',
+            'error-occurred': 'An error occurred while executing the query',
+            'all-rights': 'All rights reserved',
+            'toast-copied': 'Content copied to clipboard',
+            'toast-copy-failed': 'Failed to copy, please copy manually',
+            'toast-execute-success': 'Query executed successfully',
+            'toast-execute-failed': 'Query execution failed',
+            'toast-enter-query': 'Please enter an SQL query',
+            'toast-api-error': 'API call failed',
+            'toast-api-error-details': 'Please check the error details',
+            'json-format-error': 'There are no headers or rows in the returned JSO results',
+            'search-placeholder': 'Search in results...',
+            'total-records': 'Total Records',
+            'total-columns': 'Total Columns',
+            'filtered-records': 'Filtered Records',
+            'show': 'Show',
+            'reason': 'Reason',
+            'entries': 'entries',
+            'page': 'Page',
+            'of': 'of',
+            'clear-search': 'Clear Search',
+            'csv-format': 'CSV Format',
+            'json-format': 'JSON Format',
+            'excel-format': 'Excel Format'
         },
-        zh: {
-            pageTitle: "Elasticsearch SQL 查询",
-            refreshText: "刷新数据",
-            languageText: "中文",
-            sqlLabel: "查询SQL",
-            charText: "字符",
-            queryText: "查询",
-            clearText: "清除",
-            statusText: "就绪",
-            columnCountTitle: "字段列数",
-            rowsCountTitle: "数据行数",
-            updateTimeTitle: "最后更新时间",
-            resultTitle: "查询结果",
-            loadingText: "请输入查询SQL并执行查询..",
-            emptyTitle: "未找到匹配数据",
-            emptyText: "尝试调整搜索条件或刷新数据",
-            resetText: "重置搜索",
-            footerText: "© 2025 Elasticsearch SQL查询系统。",
-            searchPlaceholder: "搜索...",
-            apiError: "查询错误: ",
-            noSqlError: "请输入查询SQL",
-            loading: "正在执行查询...",
-            success: "查询成功",
-            apiRequestError: "请求失败，状态: ",
-            apiFormatError: "API返回的数据格式不正确，期望包含headers和rows属性",
-            sqlPlaceholder: "输入查询SQL...",
-            queryFailed: "查询失败，请检查SQL语法或API连接"
+        'zh': {
+            'app-title': 'ES SQL 查询工具',
+            'app-desc': '高效查询 Elasticsearch 数据',
+            'query-area': '查询区域',
+            'clear': '清空',
+            'characters': '字符',
+            'execute': '执行查询',
+            'result': '查询结果',
+            'records': '记录',
+            'copy': '复制',
+            'download': '下载',
+            'no-results': '没有找到结果',
+            'no-results-desc': '尝试修改查询条件或检查语法是否正确',
+            'loading': '正在执行查询...',
+            'please-wait': '请稍候...',
+            'error-occurred': '执行查询时出错',
+            'all-rights': '保留所有权利',
+            'toast-copied': '内容已复制到剪贴板',
+            'toast-copy-failed': '复制失败，请手动复制',
+            'toast-execute-success': '查询执行成功',
+            'toast-execute-failed': '查询执行失败',
+            'toast-api-error': '接口调用失败',
+            'toast-api-error-details': '请查看错误详情',
+            'json-format-error': '返回JSO结果中没有headers或者rows',
+            'toast-enter-query': '请输入 SQL 查询',
+            'search-placeholder': '在结果中搜索...',
+            'total-records': '总记录数',
+            'total-columns': '总列数',
+            'filtered-records': '过滤后记录',
+            'show': '显示',
+            'reason': '原因',
+            'entries': '条记录',
+            'page': '第',
+            'of': '页，共',
+            'clear-search': '清空搜索',
+            'csv-format': 'CSV 格式',
+            'json-format': 'JSON 格式',
+            'excel-format': 'Excel 格式'
         }
     };
 
-    // 页面元素映射，便于批量更新文本
-    const elementMap = {
-        pageTitle: document.getElementById('pageTitle'),
-        refreshText: document.getElementById('refreshText'),
-        languageText: document.getElementById('languageText'),
-        sqlLabel: document.getElementById('sqlLabel'),
-        charText: document.getElementById('charText'),
-        queryText: document.getElementById('queryText'),
-        clearText: document.getElementById('clearText'),
-        statusText: document.getElementById('statusText'),
-        columnCountTitle: document.getElementById('columnCountTitle'),
-        rowsCountTitle: document.getElementById('rowsCountTitle'),
-        updateTimeTitle: document.getElementById('updateTimeTitle'),
-        resultTitle: document.getElementById('resultTitle'),
-        loadingText: document.getElementById('loadingText'),
-        emptyTitle: document.getElementById('emptyTitle'),
-        emptyText: document.getElementById('emptyText'),
-        resetText: document.getElementById('resetText'),
-        footerText: document.querySelector('footer p'),
-        searchInput: document.getElementById('searchInput'), // 占位符需要特殊处理
-        sqlInput: document.getElementById('apiParams') // 添加SQL文本框到元素映射
-    };
-
-    // 页面元素
-    const apiParams = document.getElementById('apiParams');
-    const callApiBtn = document.getElementById('callApiBtn');
-    const clearParamsBtn = document.getElementById('clearParamsBtn');
-    const charCount = document.getElementById('charCount');
-    const apiStatus = document.getElementById('apiStatus');
-    const statusIndicator = document.getElementById('statusIndicator');
-    const tableBody = document.getElementById('tableBody');
-    const refreshBtn = document.getElementById('refreshBtn');
-    const searchInput = document.getElementById('searchInput');
-    const resetSearchBtn = document.getElementById('resetSearchBtn');
-    const prevPageBtn = document.getElementById('prevPageBtn');
-    const nextPageBtn = document.getElementById('nextPageBtn');
-    const pageInfo = document.getElementById('pageInfo');
-    const emptyState = document.getElementById('emptyState');
-    const fieldCount = document.getElementById('fieldCount');
-    const rowCount = document.getElementById('rowCount');
-    const lastUpdated = document.getElementById('lastUpdated');
     const esHost = window.location.hostname || 'localhost';
     const esPort = window.location.port || '9200';
-    const languageBtn = document.getElementById('languageBtn');
-    const languageDropdown = document.getElementById('languageDropdown');
-    const languageLinks = languageDropdown.querySelectorAll('a');
 
-    // 当前语言状态
-    let currentLanguage = 'en';
-
-    // 表格数据和状态
-    let tableData = {
-        header: [],
-        rows: []
-    };
-    let filteredData = [];
+    // 分页相关变量
     let currentPage = 1;
-    const itemsPerPage = 10;
+    let pageSize = 10;
+    let filteredData = [];
+    let originalData = [];
+    let sortField = null;
+    let sortDirection = 'asc';
 
-    // 更新字符计数
-    function updateCharCount() {
-        charCount.textContent = apiParams.value.length;
+    // 当前语言
+    let currentLang = 'en';
+
+    // 更新界面语言
+    function updateLanguage(lang) {
+        currentLang = lang;
+        document.querySelectorAll('[data-lang]').forEach(el => {
+            const key = el.getAttribute('data-lang');
+            if (translations[lang][key]) {
+                el.textContent = translations[lang][key];
+            }
+        });
+
+        // 更新搜索框占位符
+        document.getElementById('searchInput').placeholder = translations[lang]['search-placeholder'];
+
+        // 更新下载菜单
+        document.querySelectorAll('#downloadMenu a').forEach(link => {
+            const format = link.getAttribute('data-format');
+            if (format === 'csv') {
+                link.textContent = translations[lang]['csv-format'];
+            } else if (format === 'json') {
+                link.textContent = translations[lang]['json-format'];
+            } else if (format === 'excel') {
+                link.textContent = translations[lang]['excel-format'];
+            }
+        });
+
+        // 更新语言选择器
+        document.getElementById('langToggle').value = lang;
     }
 
-    // 格式化日期时间
-    function formatDateTime(date) {
-        return new Intl.DateTimeFormat(currentLanguage === 'zh' ? 'zh-CN' : 'en-US', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit'
-        }).format(date);
-    }
+    // 字符计数
+    const sqlQuery = document.getElementById('sqlQuery');
+    const charCount = document.getElementById('charCount');
 
-    // 更新API状态
-    function updateApiStatus(status, message) {
-        apiStatus.classList.remove('hidden');
+    sqlQuery.addEventListener('input', function () {
+        charCount.textContent = this.value.length;
+    });
 
-        // 根据状态设置颜色
-        if (status === 'success') {
-            statusIndicator.className = 'w-3 h-3 rounded-full mr-2 bg-success';
-        } else if (status === 'error') {
-            statusIndicator.className = 'w-3 h-3 rounded-full mr-2 bg-danger';
-        } else if (status === 'loading') {
-            statusIndicator.className = 'w-3 h-3 rounded-full mr-2 bg-warning animate-pulse';
-        } else {
-            statusIndicator.className = 'w-3 h-3 rounded-full mr-2 bg-gray-300';
-        }
+    // 执行查询
+    document.getElementById('executeBtn').addEventListener('click', executeQuery);
 
-        statusText.textContent = message;
-    }
+    // 清空按钮
+    document.getElementById('clearBtn').addEventListener('click', function () {
+        sqlQuery.value = '';
+        charCount.textContent = '0';
+    });
 
-    // 更新数据统计信息
-    function updateStats() {
-        fieldCount.textContent = tableData.header ? tableData.header.length : 0;
-        rowCount.textContent = tableData.rows ? tableData.rows.length : 0;
-        lastUpdated.textContent = formatDateTime(new Date());
-    }
+    // 语言切换
+    document.getElementById('langToggle').addEventListener('change', function () {
+        updateLanguage(this.value);
+    });
 
-    // 生成表头
-    function generateTableHeader() {
-        const thead = document.querySelector('thead tr');
-        thead.innerHTML = '';
-
-        if (tableData.header && tableData.header.length > 0) {
-            tableData.header.forEach((header, index) => {
-                const th = document.createElement('th');
-                th.className = 'px-6 py-3 text-sm font-medium text-gray-700 tracking-wider border-b border-gray-200';
-                th.innerHTML = `
-            <div class="flex items-center">
-              <span>${header}</span>
-              <button class="ml-2 text-gray-400 hover:text-gray-600 transition-colors duration-200">
-                <i class="fa fa-sort"></i>
-              </button>
-            </div>
-          `;
-                thead.appendChild(th);
+    // 复制结果
+    document.getElementById('copyBtn').addEventListener('click', function () {
+        const resultTable = document.getElementById('resultTable');
+        if (resultTable.innerHTML.trim()) {
+            const textToCopy = getTableText(resultTable);
+            navigator.clipboard.writeText(textToCopy).then(function () {
+                showToast(translations[currentLang]['toast-copied']);
+            }).catch(function (err) {
+                showToast(translations[currentLang]['toast-copy-failed'], 'error');
             });
         }
+    });
+
+    // 下载结果
+    document.getElementById('downloadBtn').addEventListener('click', function (e) {
+        e.stopPropagation();
+        document.getElementById('downloadMenu').classList.toggle('hidden');
+    });
+
+    // 下载格式选择
+    document.querySelectorAll('#downloadMenu a').forEach(link => {
+        link.addEventListener('click', function (e) {
+            e.preventDefault();
+            const format = this.getAttribute('data-format');
+            downloadResults(format);
+            document.getElementById('downloadMenu').classList.add('hidden');
+        });
+    });
+
+    // 点击其他区域关闭下载菜单
+    document.addEventListener('click', function (e) {
+        if (!document.getElementById('downloadBtn').contains(e.target)) {
+            document.getElementById('downloadMenu').classList.add('hidden');
+        }
+    });
+
+    // 搜索功能
+    document.getElementById('searchInput').addEventListener('input', function () {
+        const searchTerm = this.value.toLowerCase().trim();
+        if (!originalData || originalData.length === 0) return;
+
+        if (searchTerm === '') {
+            filteredData = [...originalData];
+        } else {
+            filteredData = originalData.filter(row => {
+                return row.some(cell =>
+                    cell.toString().toLowerCase().includes(searchTerm)
+                );
+            });
+        }
+
+        currentPage = 1;
+        renderTable();
+        updatePagination();
+        updateResultStats();
+    });
+
+    // 清空搜索
+    document.getElementById('clearSearchBtn').addEventListener('click', function () {
+        document.getElementById('searchInput').value = '';
+        filteredData = [...originalData];
+        currentPage = 1;
+        renderTable();
+        updatePagination();
+        updateResultStats();
+    });
+
+    // 分页相关事件
+    document.getElementById('pageSize').addEventListener('change', function () {
+        pageSize = parseInt(this.value);
+        currentPage = 1;
+        renderTable();
+        updatePagination();
+    });
+
+    document.getElementById('firstPage').addEventListener('click', function () {
+        if (currentPage > 1) {
+            currentPage = 1;
+            renderTable();
+            updatePagination();
+        }
+    });
+
+    document.getElementById('prevPage').addEventListener('click', function () {
+        if (currentPage > 1) {
+            currentPage--;
+            renderTable();
+            updatePagination();
+        }
+    });
+
+    document.getElementById('nextPage').addEventListener('click', function () {
+        if (currentPage < getTotalPages()) {
+            currentPage++;
+            renderTable();
+            updatePagination();
+        }
+    });
+
+    document.getElementById('lastPage').addEventListener('click', function () {
+        const totalPages = getTotalPages();
+        if (currentPage < totalPages) {
+            currentPage = totalPages;
+            renderTable();
+            updatePagination();
+        }
+    });
+
+    async function callApi(sql) {
+        try {
+            try {
+                const apiUrl = `http://${esHost}:${esPort}/web_sql_query`;
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({"sql": sql})
+                });
+                const data = await response.json()
+                if (!response.ok) {
+                    console.error(data)
+                    showToast(
+                        `${translations[currentLang]['toast-api-error']} - ${data.error.reason}`,
+                        'error',
+                        data
+                    );
+                    throw new Error(`${translations[currentLang]['toast-execute-failed']}, ${translations[currentLang]['reason']}: ${data.error.reason}`);
+                }
+                return data;
+            } catch (error) {
+                throw error;
+            }
+        } catch (error) {
+            throw error;
+        }
     }
 
-    // 生成表格内容
-    function generateTableContent() {
-        tableBody.innerHTML = '';
-
-        if (filteredData.length === 0) {
-            emptyState.classList.remove('hidden');
+    // 执行查询函数
+    function executeQuery() {
+        const sql = sqlQuery.value.trim();
+        if (!sql) {
+            showToast(translations[currentLang]['toast-enter-query'], 'warning');
             return;
         }
 
-        emptyState.classList.add('hidden');
+        // 显示加载状态
+        document.getElementById('loadingIndicator').classList.remove('hidden');
+        document.getElementById('resultContainer').classList.add('hidden');
+        document.getElementById('errorContainer').classList.add('hidden');
 
-        // 计算当前页的数据范围
-        const startIndex = (currentPage - 1) * itemsPerPage;
-        const endIndex = Math.min(startIndex + itemsPerPage, filteredData.length);
-        const pageData = filteredData.slice(startIndex, endIndex);
+        callApi(sql)
+            .then(data => {
+                document.getElementById('loadingIndicator').classList.add('hidden');
+                processResult(data);
+            })
+            .catch(error => {
+                document.getElementById('loadingIndicator').classList.add('hidden');
+                // 显示详细错误信息
+                document.getElementById('errorContainer').classList.remove('hidden');
+                document.getElementById('errorMessage').textContent = error.message;
+                document.getElementById('errorDetails').textContent = error.stack || error.message;
+            });
+    }
 
-        // 生成表格行
-        pageData.forEach((row, rowIndex) => {
+    function showToast(message, type = 'success', details = '') {
+        // 创建提示框元素
+        const toast = document.createElement('div');
+
+        // 设置样式和类
+        let bgColor, textColor, icon;
+        switch (type) {
+            case 'error':
+                bgColor = 'bg-danger';
+                textColor = 'text-white';
+                icon = 'fa-exclamation-circle';
+                break;
+            case 'warning':
+                bgColor = 'bg-warning';
+                textColor = 'text-white';
+                icon = 'fa-exclamation-triangle';
+                break;
+            case 'success':
+            default:
+                bgColor = 'bg-success';
+                textColor = 'text-white';
+                icon = 'fa-check-circle';
+                break;
+        }
+
+        toast.className = `mb-2 ${bgColor} ${textColor} px-6 py-3 rounded-lg shadow-lg z-50 flex items-center transform transition-all duration-300 translate-y-20 opacity-0 max-w-md`;
+
+        // 设置内容
+        toast.innerHTML = `
+        <i class="fa ${icon} mr-2 text-xl"></i>
+        <div class="flex-1">
+          <div class="font-medium">${message}</div>
+          ${details ? `<div class="text-xs mt-1 opacity-80">${details}</div>` : ''}
+        </div>
+        <button class="ml-4 close-toast">
+          <i class="fa fa-times"></i>
+        </button>
+      `;
+
+        // 添加到容器
+        const container = document.getElementById('toastContainer');
+        container.appendChild(toast);
+
+        // 显示动画
+        setTimeout(() => {
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+        }, 10);
+
+        // 添加关闭按钮事件
+        toast.querySelector('.close-toast').addEventListener('click', () => {
+            removeToast(toast);
+        });
+
+        // 自动关闭
+        const autoCloseTimer = setTimeout(() => {
+            removeToast(toast);
+        }, 5000);
+
+        // 鼠标悬停时暂停自动关闭
+        toast.addEventListener('mouseenter', () => {
+            clearTimeout(autoCloseTimer);
+        });
+
+        // 鼠标离开时重新设置自动关闭
+        toast.addEventListener('mouseleave', () => {
+            setTimeout(() => {
+                removeToast(toast);
+            }, 2000);
+        });
+    }
+
+    function removeToast(toast) {
+        toast.classList.add('translate-y-20', 'opacity-0');
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.parentNode.removeChild(toast);
+            }
+        }, 300);
+    }
+
+    // 处理查询结果
+    function processResult(data) {
+        const resultContainer = document.getElementById('resultContainer');
+        const resultTable = document.getElementById('resultTable');
+        const tableHeader = document.getElementById('tableHeader');
+        const tableBody = document.getElementById('tableBody');
+        const resultCount = document.getElementById('resultCount');
+        const emptyResult = document.getElementById('emptyResult');
+        const paginationControls = document.getElementById('paginationControls');
+        const resultStats = document.getElementById('resultStats');
+
+        // 清空表格
+        tableHeader.innerHTML = '';
+        tableBody.innerHTML = '';
+
+        // 检查是否有结果
+        if (!data || !data.headers || !data.rows || data.rows.length === 0) {
+            resultContainer.classList.remove('hidden');
+            emptyResult.classList.remove('hidden');
+            resultTable.classList.add('hidden');
+            paginationControls.classList.add('hidden');
+            resultStats.classList.add('hidden');
+            resultCount.textContent = `(0 ${translations[currentLang]['records']})`;
+            return;
+        }
+
+        // 保存原始数据
+        originalData = [...data.rows];
+        filteredData = [...data.rows];
+
+        // 重置分页和排序
+        currentPage = 1;
+        pageSize = parseInt(document.getElementById('pageSize').value);
+        sortField = null;
+        sortDirection = 'asc';
+
+        // 显示结果
+        resultContainer.classList.remove('hidden');
+        emptyResult.classList.add('hidden');
+        resultTable.classList.remove('hidden');
+        paginationControls.classList.remove('hidden');
+        resultStats.classList.remove('hidden');
+
+        // 生成表头
+        data.headers.forEach((header, index) => {
+            const th = document.createElement('th');
+            th.setAttribute('scope', 'col');
+            th.className = 'px-6 py-4 text-left text-xs font-medium text-primary tracking-wider table-header-cell table-cell-border sortable-header';
+            th.innerHTML = `${header} <i class="fa fa-sort ml-1 text-primary/60"></i>`;
+            th.addEventListener('click', () => handleSort(index));
+            tableHeader.appendChild(th);
+        });
+
+        // 渲染表格
+        renderTable();
+
+        // 更新分页控件
+        updatePagination();
+
+        // 更新统计信息
+        updateResultStats();
+
+        // 更新记录数
+        resultCount.textContent = `(${data.rows.length.toLocaleString()} ${translations[currentLang]['records']})`;
+
+        // 显示成功提示
+        showToast(`${translations[currentLang]['toast-execute-success']}, ${data.rows.length.toLocaleString()} ${translations[currentLang]['records']}`);
+    }
+
+    // 渲染表格（分页）
+    function renderTable() {
+        const tableBody = document.getElementById('tableBody');
+        tableBody.innerHTML = '';
+
+        const startIndex = (currentPage - 1) * pageSize;
+        const endIndex = Math.min(startIndex + pageSize, filteredData.length);
+        const currentPageData = filteredData.slice(startIndex, endIndex);
+
+        // 生成表格内容
+        currentPageData.forEach((row, rowIndex) => {
             const tr = document.createElement('tr');
-            tr.className = `border-b border-gray-200 hover:bg-gray-50 transition-colors duration-150 ${rowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`;
+            tr.className = 'animate-fade-in';
+            tr.style.animationDelay = `${rowIndex * 50}ms`;
 
             row.forEach((cell, cellIndex) => {
                 const td = document.createElement('td');
-                td.className = 'px-6 py-4 whitespace-nowrap text-sm text-gray-700';
+                td.className = 'px-6 py-4 whitespace-nowrap text-sm text-gray-500 border-b border-gray-200';
 
-                // 根据数据类型设置不同的样式
-                if (typeof cell === 'number') {
-                    td.className += ' font-medium';
+                // 根据数据类型应用不同的样式
+                if (typeof cell === 'number' || (typeof cell === 'string' && !isNaN(parseFloat(cell)))) {
+                    td.classList.add('number-cell');
+                } else if (typeof cell === 'boolean') {
+                    td.classList.add('text-center');
+                } else {
+                    td.classList.add('text-left');
                 }
 
-                // 处理特殊数据类型
-                if (cell === null || cell === undefined) {
-                    td.textContent = '-';
-                } else if (typeof cell === 'object' && cell !== null) {
-                    // 如果是对象，尝试转换为JSON字符串
-                    td.textContent = JSON.stringify(cell);
-                    td.className += ' text-xs font-mono overflow-x-auto';
+                // 特殊处理状态类数据
+                if (document.getElementById('tableHeader').children[cellIndex].textContent.toLowerCase() === 'status') {
+                    const statusClass = getStatusClass(cell);
+                    td.innerHTML = `<span class="px-2 py-1 rounded-full text-xs font-medium ${statusClass}">${cell}</span>`;
                 } else {
                     td.textContent = cell;
                 }
@@ -501,267 +878,285 @@
 
             tableBody.appendChild(tr);
         });
+    }
 
-        // 更新分页信息
-        updatePagination();
+    // 根据状态值返回对应的Tailwind类
+    function getStatusClass(status) {
+        const statusMap = {
+            'active': 'bg-green-100 text-green-800',
+            'inactive': 'bg-gray-100 text-gray-800',
+            'pending': 'bg-yellow-100 text-yellow-800',
+            'deleted': 'bg-red-100 text-red-800'
+        };
+        return statusMap[status] || 'bg-gray-100 text-gray-800';
     }
 
     // 更新分页控件
     function updatePagination() {
-        const totalPages = Math.ceil(filteredData.length / itemsPerPage);
-        pageInfo.textContent = `${currentPage} / ${Math.max(1, totalPages)}`;
+        const pageNumbers = document.getElementById('pageNumbers');
+        const firstPage = document.getElementById('firstPage');
+        const prevPage = document.getElementById('prevPage');
+        const nextPage = document.getElementById('nextPage');
+        const lastPage = document.getElementById('lastPage');
 
-        prevPageBtn.disabled = currentPage === 1;
-        nextPageBtn.disabled = currentPage === totalPages || totalPages === 0;
-    }
+        pageNumbers.innerHTML = '';
 
-    // 搜索数据
-    function searchData(query) {
-        if (!query.trim()) {
-            filteredData = [...tableData.rows];
-        } else {
-            const searchLower = query.toLowerCase();
-            filteredData = tableData.rows.filter(row =>
-                row.some(cell => String(cell).toLowerCase().includes(searchLower))
-            );
+        const totalPages = getTotalPages();
+
+        // 启用/禁用按钮
+        firstPage.disabled = currentPage === 1;
+        prevPage.disabled = currentPage === 1;
+        nextPage.disabled = currentPage === totalPages;
+        lastPage.disabled = currentPage === totalPages;
+
+        // 生成页码
+        const maxVisiblePages = 5;
+        let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+        let endPage = startPage + maxVisiblePages - 1;
+
+        if (endPage > totalPages) {
+            endPage = totalPages;
+            startPage = Math.max(1, endPage - maxVisiblePages + 1);
         }
 
+        // 添加第一页按钮
+        if (startPage > 1) {
+            addPageButton(1);
+            if (startPage > 2) {
+                addEllipsis();
+            }
+        }
+
+        // 添加可见页码
+        for (let i = startPage; i <= endPage; i++) {
+            addPageButton(i);
+        }
+
+        // 添加最后一页按钮
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) {
+                addEllipsis();
+            }
+            addPageButton(totalPages);
+        }
+
+        function addPageButton(pageNum) {
+            const button = document.createElement('button');
+            button.className = `px-3 py-1.5 rounded-lg mx-1 ${pageNum === currentPage ? 'bg-primary text-white' : 'bg-gray-100 hover:bg-gray-200'}`;
+            button.textContent = pageNum;
+            button.addEventListener('click', () => {
+                currentPage = pageNum;
+                renderTable();
+                updatePagination();
+            });
+            pageNumbers.appendChild(button);
+        }
+
+        function addEllipsis() {
+            const ellipsis = document.createElement('span');
+            ellipsis.className = 'px-3 py-1.5 text-gray-500';
+            ellipsis.textContent = '...';
+            pageNumbers.appendChild(ellipsis);
+        }
+    }
+
+    // 获取总页数
+    function getTotalPages() {
+        return Math.ceil(filteredData.length / pageSize);
+    }
+
+    // 更新统计信息
+    function updateResultStats() {
+        document.getElementById('totalRecords').textContent = originalData.length.toLocaleString();
+        document.getElementById('totalColumns').textContent = document.getElementById('tableHeader').children.length;
+        document.getElementById('filteredRecords').textContent = filteredData.length.toLocaleString();
+    }
+
+    // 处理排序
+    function handleSort(columnIndex) {
+        const headers = document.getElementById('tableHeader').children;
+
+        // 重置所有表头的排序图标
+        for (let i = 0; i < headers.length; i++) {
+            if (i !== columnIndex) {
+                headers[i].innerHTML = `${headers[i].textContent.replace(/<i[^>]*>/g, '').trim()} <i class="fa fa-sort ml-1 text-primary/60"></i>`;
+            }
+        }
+
+        // 设置当前表头的排序图标
+        if (sortField === columnIndex) {
+            // 切换排序方向
+            sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+            // 设置新的排序字段
+            sortField = columnIndex;
+            sortDirection = 'asc';
+        }
+
+        // 更新表头图标
+        const iconClass = sortDirection === 'asc' ? 'fa-sort-asc' : 'fa-sort-desc';
+        headers[columnIndex].innerHTML = `${headers[columnIndex].textContent.replace(/<i[^>]*>/g, '').trim()} <i class="fa ${iconClass} ml-1 text-primary"></i>`;
+
+        // 排序数据
+        filteredData.sort((a, b) => {
+            const valueA = a[sortField];
+            const valueB = b[sortField];
+
+            // 尝试将值转换为数字进行比较
+            const numA = parseFloat(valueA);
+            const numB = parseFloat(valueB);
+
+            if (!isNaN(numA) && !isNaN(numB)) {
+                return sortDirection === 'asc' ? numA - numB : numB - numA;
+            }
+
+            // 如果不能转换为数字，则按字符串比较
+            return sortDirection === 'asc'
+                ? valueA.toString().localeCompare(valueB.toString())
+                : valueB.toString().localeCompare(valueA.toString());
+        });
+
+        // 重置分页并重新渲染表格
         currentPage = 1;
-        generateTableContent();
+        renderTable();
+        updatePagination();
     }
 
-    // 调用API
-    async function callApi() {
-        try {
-            // 获取输入的SQL
-            const sql = apiParams.value.trim();
+    // 下载结果
+    function downloadResults(format) {
+        const resultTable = document.getElementById('resultTable');
+        if (resultTable.innerHTML.trim()) {
+            let content, contentType, fileName;
 
-            if (!sql) {
-                updateApiStatus('error', languageResources[currentLanguage].noSqlError);
-                return;
+            switch (format) {
+                case 'csv':
+                    content = getTableCSV(resultTable);
+                    contentType = 'text/csv;charset=utf-8;';
+                    fileName = `es_query_result_${new Date().toISOString().slice(0, 10)}.csv`;
+                    break;
+                case 'json':
+                    content = getTableJSON(resultTable);
+                    contentType = 'application/json;charset=utf-8;';
+                    fileName = `es_query_result_${new Date().toISOString().slice(0, 10)}.json`;
+                    break;
+                case 'excel':
+                    content = getTableCSV(resultTable);
+                    contentType = 'application/vnd.ms-excel;charset=utf-8;';
+                    fileName = `es_query_result_${new Date().toISOString().slice(0, 10)}.xls`;
+                    break;
+                default:
+                    content = getTableCSV(resultTable);
+                    contentType = 'text/csv;charset=utf-8;';
+                    fileName = `es_query_result_${new Date().toISOString().slice(0, 10)}.csv`;
             }
 
-            // 显示加载状态
-            updateApiStatus('loading', languageResources[currentLanguage].loading);
-            tableBody.innerHTML = `
-          <tr>
-            <td colspan="100" class="py-12 text-center text-gray-500">
-              <div class="inline-flex flex-col items-center">
-                <i class="fa fa-spinner fa-spin text-3xl mb-3 text-primary"></i>
-                <p>${languageResources[currentLanguage].loadingText}</p>
-              </div>
-            </td>
-          </tr>
-        `;
+            const blob = new Blob([content], {type: contentType});
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
 
-            // 调用API获取数据
-            const responseData = await call(sql);
+            link.setAttribute('href', url);
+            link.setAttribute('download', fileName);
+            link.style.visibility = 'hidden';
 
-            if (responseData.headers && Array.isArray(responseData.headers) &&
-                responseData.rows && Array.isArray(responseData.rows)) {
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
 
-                // 直接使用返回的headers和rows
-                const headers = responseData.headers;
-                const rows = responseData.rows;
-
-                // 更新表格数据
-                tableData = {
-                    header: headers,
-                    rows: rows
-                };
-
-                filteredData = [...tableData.rows];
-
-                // 更新页面
-                updateStats();
-                generateTableHeader();
-                generateTableContent();
-                updateApiStatus('success', languageResources[currentLanguage].success);
-
-                // 添加淡入动画
-                tableBody.querySelectorAll('tr').forEach((tr, index) => {
-                    tr.style.opacity = '0';
-                    tr.style.transform = 'translateY(10px)';
-                    tr.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-
-                    setTimeout(() => {
-                        tr.style.opacity = '1';
-                        tr.style.transform = 'translateY(0)';
-                    }, 50 * index);
-                });
-
-            } else {
-                throw new Error(languageResources[currentLanguage].apiFormatError);
-            }
-        } catch (error) {
-            // 显示错误信息
-            updateApiStatus('error', `${languageResources[currentLanguage].apiError}${error.message}`);
-            tableBody.innerHTML = `
-          <tr>
-            <td colspan="100" class="py-12 text-center text-gray-500">
-              <div class="inline-flex flex-col items-center">
-                <i class="fa fa-exclamation-circle text-3xl mb-3 text-danger"></i>
-                <p>${languageResources[currentLanguage].queryFailed}</p>
-              </div>
-            </td>
-          </tr>
-        `;
-            console.error('Query Error:', error);
+            showToast(`Downloading ${fileName}`);
         }
     }
 
-    async function call(sql) {
-        try {
-            const apiUrl = `http://${esHost}:${esPort}/web_sql_query`;
-            const response = await fetch(apiUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({"sql": sql})
-            });
+    // 获取表格 JSON 内容
+    function getTableJSON(table) {
+        const headers = [];
+        const rows = [];
 
-            if (!response.ok) {
-                throw new Error(`${languageResources[currentLanguage].apiRequestError}${response.status}, ${response.body}`);
-            }
-
-            const data = await response.json();
-            // 根据实际返回数据结构调整（假设返回数组或包含数组的对象）
-            if (data.headers && Array.isArray(data.headers) && data.rows && Array.isArray(data.rows)) {
-                return data; // 返回包含headers和rows的对象
-            } else {
-                throw new Error(languageResources[currentLanguage].apiFormatError);
-            }
-        } catch (error) {
-            throw new Error(`${languageResources[currentLanguage].apiError}${error.message}`);
+        // 获取表头
+        const headerCells = table.rows[0].cells;
+        for (let i = 0; i < headerCells.length; i++) {
+            headers.push(headerCells[i].textContent.trim());
         }
+
+        // 获取数据行
+        for (let i = 1; i < table.rows.length; i++) {
+            const row = {};
+            const cells = table.rows[i].cells;
+
+            for (let j = 0; j < cells.length; j++) {
+                // 处理状态标签
+                let cellValue = cells[j].textContent.trim();
+                if (cells[j].querySelector('span')) {
+                    cellValue = cells[j].querySelector('span').textContent.trim();
+                }
+
+                row[headers[j]] = cellValue;
+            }
+
+            rows.push(row);
+        }
+
+        return JSON.stringify(rows, null, 2);
     }
 
-    // 更新语言显示
-    function updateLanguageDisplay(lang) {
-        currentLanguage = lang;
-        document.documentElement.lang = lang;
+    // 获取表格 CSV 内容
+    function getTableCSV(table) {
+        let csv = '';
 
-        // 保存语言状态到本地存储
-        localStorage.setItem('esSqlQueryLanguage', lang);
+        // 添加表头
+        const headerCells = table.rows[0].cells;
+        for (let i = 0; i < headerCells.length; i++) {
+            let cellText = headerCells[i].textContent.replace(/"/g, '""');
+            if (cellText.includes(',') || cellText.includes('\n')) {
+                cellText = `"${cellText}"`;
+            }
+            csv += cellText + (i === headerCells.length - 1 ? '\n' : ',');
+        }
 
-        // 更新语言按钮文本
-        languageResources[lang].languageText === 'English' ?
-            languageBtn.querySelector('#languageText').textContent = 'English' :
-            languageBtn.querySelector('#languageText').textContent = '中文';
+        // 添加数据行
+        for (let i = 1; i < table.rows.length; i++) {
+            const cells = table.rows[i].cells;
+            for (let j = 0; j < cells.length; j++) {
+                // 处理状态标签
+                let cellValue = cells[j].textContent.trim();
+                if (cells[j].querySelector('span')) {
+                    cellValue = cells[j].querySelector('span').textContent.trim();
+                }
 
-        // 更新所有文本元素
-        for (const [key, element] of Object.entries(elementMap)) {
-            if (key === 'searchInput') {
-                element.placeholder = languageResources[lang].searchPlaceholder;
-            } else if (key === 'sqlInput') {
-                element.placeholder = languageResources[lang].sqlPlaceholder;
-            } else if (element) {
-                element.textContent = languageResources[lang][key];
+                let cellText = cellValue.replace(/"/g, '""');
+                if (cellText.includes(',') || cellText.includes('\n')) {
+                    cellText = `"${cellText}"`;
+                }
+                csv += cellText + (j === cells.length - 1 ? '\n' : ',');
             }
         }
 
-        // 如果有API状态，更新错误信息文本
-        if (statusText.textContent.startsWith(languageResources['en'].apiError) && lang === 'zh') {
-            statusText.textContent = statusText.textContent.replace(
-                languageResources['en'].apiError,
-                languageResources['zh'].apiError
-            );
-        } else if (statusText.textContent.startsWith(languageResources['zh'].apiError) && lang === 'en') {
-            statusText.textContent = statusText.textContent.replace(
-                languageResources['zh'].apiError,
-                languageResources['en'].apiError
-            );
-        }
+        return csv;
     }
 
-    // 初始化页面
-    function init() {
-        // 检查本地存储中的语言设置，若无则使用默认英文
-        const savedLanguage = localStorage.getItem('esSqlQueryLanguage');
-        if (savedLanguage && languageResources[savedLanguage]) {
-            currentLanguage = savedLanguage;
-        } else {
-            currentLanguage = 'en';
+    // 获取表格文本
+    function getTableText(table) {
+        let text = '';
+        const rows = table.rows;
+        for (let i = 0; i < rows.length; i++) {
+            const cells = rows[i].cells;
+            for (let j = 0; j < cells.length; j++) {
+                // 处理状态标签
+                let cellValue = cells[j].textContent.trim();
+                if (cells[j].querySelector('span')) {
+                    cellValue = cells[j].querySelector('span').textContent.trim();
+                }
+
+                text += cellValue + (j === cells.length - 1 ? '\n' : '\t');
+            }
         }
-
-        // 初始化语言显示
-        updateLanguageDisplay(currentLanguage);
-
-        // 初始化字符计数
-        updateCharCount();
-
-        // 绑定事件监听器
-        callApiBtn.addEventListener('click', callApi);
-        clearParamsBtn.addEventListener('click', () => {
-            apiParams.value = '';
-            updateCharCount();
-        });
-        apiParams.addEventListener('input', updateCharCount);
-
-        refreshBtn.addEventListener('click', callApi);
-
-        searchInput.addEventListener('input', (e) => {
-            searchData(e.target.value);
-        });
-
-        resetSearchBtn.addEventListener('click', () => {
-            searchInput.value = '';
-            searchData('');
-        });
-
-        prevPageBtn.addEventListener('click', () => {
-            if (currentPage > 1) {
-                currentPage--;
-                generateTableContent();
-            }
-        });
-
-        nextPageBtn.addEventListener('click', () => {
-            const totalPages = Math.ceil(filteredData.length / itemsPerPage);
-            if (currentPage < totalPages) {
-                currentPage++;
-                generateTableContent();
-            }
-        });
-
-        // 语言切换按钮事件
-        languageBtn.addEventListener('click', () => {
-            languageDropdown.classList.toggle('hidden');
-        });
-
-        // 点击页面其他地方关闭语言下拉菜单
-        document.addEventListener('click', (e) => {
-            if (!languageBtn.contains(e.target) && !languageDropdown.contains(e.target)) {
-                languageDropdown.classList.add('hidden');
-            }
-        });
-
-        // 语言选项点击事件
-        languageLinks.forEach(link => {
-            link.addEventListener('click', (e) => {
-                e.preventDefault();
-                const lang = link.getAttribute('data-lang');
-                updateLanguageDisplay(lang);
-                languageDropdown.classList.add('hidden');
-            });
-        });
-
-        // 添加滚动时导航栏效果
-        window.addEventListener('scroll', () => {
-            const header = document.querySelector('header');
-            if (window.scrollY > 10) {
-                header.classList.add('shadow-md');
-                header.classList.remove('shadow-sm');
-            } else {
-                header.classList.remove('shadow-md');
-                header.classList.add('shadow-sm');
-            }
-        });
+        return text;
     }
 
-    // 页面加载完成后初始化
-    document.addEventListener('DOMContentLoaded', init);
+    // 初始化
+    document.addEventListener('DOMContentLoaded', function () {
+        updateLanguage(currentLang);
+    });
 </script>
 </body>
+
 </html>

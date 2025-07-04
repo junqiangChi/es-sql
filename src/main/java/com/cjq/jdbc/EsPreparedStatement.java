@@ -361,7 +361,7 @@ public class EsPreparedStatement implements PreparedStatement {
     private ObjectResult getObjectResult() {
         try {
             ActionPlanFactory actionPlanFactory = ActionPlanFactory.getInstance();
-            ActionPlan actionPlan = actionPlanFactory.createAction(plan);
+            ActionPlan actionPlan = actionPlanFactory.createAction(connection.getClient(), plan);
             ActionRequest request = actionPlan.explain();
             ExecutorFactory executorFactory = ExecutorFactory.getInstance();
             Executor executor = executorFactory.createActionPlanExecutor(plan, connection.getClient());

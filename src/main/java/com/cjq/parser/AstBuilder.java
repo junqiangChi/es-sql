@@ -1,5 +1,6 @@
 package com.cjq.parser;
 
+import com.cjq.common.Constant;
 import com.cjq.common.WhereOpr;
 import com.cjq.exception.EsSqlParseException;
 import com.cjq.plan.logical.*;
@@ -7,6 +8,7 @@ import org.antlr.v4.runtime.tree.ErrorNodeImpl;
 import org.antlr.v4.runtime.tree.ParseTree;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -70,7 +72,11 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
     }
 
     private Field getField(SqlBaseParser.NamedExpressionContext ctx) {
-        Field field = (Field) visit(ctx.expression().booleanExpression());
+        LogicalPlan visit = visit(ctx.expression().booleanExpression());
+        if (visit instanceof Value) {
+            throw new EsSqlParseException("Field name incorrect, cannot start with a number");
+        }
+        Field field = (Field) visit;
         if (ctx.errorCapturingIdentifier() != null) {
             field.setAlias(ctx.errorCapturingIdentifier().getText());
         }
@@ -92,13 +98,11 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
     @Override
     public LogicalPlan visitValueExpressionDefault(SqlBaseParser.ValueExpressionDefaultContext ctx) {
         if (ctx.primaryExpression() instanceof SqlBaseParser.ConstantDefaultContext) {
-            SqlBaseParser.ConstantDefaultContext constantDefaultContext = (SqlBaseParser.ConstantDefaultContext) ctx.primaryExpression();
-            SqlBaseParser.ConstantContext constant = constantDefaultContext.constant();
-            Value value = (Value) visit(constant);
-            Field field = new Field();
-            field.setConstant(true);
-            field.setConstantValue(value.getText());
-            return field;
+            return visit(((SqlBaseParser.ConstantDefaultContext) ctx.primaryExpression()).constant());
+        } else if (ctx.primaryExpression() instanceof SqlBaseParser.RowConstructorContext) {
+            return visit(ctx.primaryExpression());
+        } else if (ctx.primaryExpression() instanceof SqlBaseParser.ColumnReferenceContext) {
+            return visit(ctx.primaryExpression());
         } else {
             return visit(ctx.primaryExpression());
         }
@@ -354,5 +358,73 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
             return new Show(patternText.substring(1, patternText.length() - 1));
         }
         return new Show();
+    }
+
+    @Override
+    public LogicalPlan visitSingleInsertQuery(SqlBaseParser.SingleInsertQueryContext ctx) {
+        Insert valueInsert = (Insert) visit(ctx.query());
+        Insert insert = (Insert) visit(ctx.insertInto());
+        insert.setValues(valueInsert.getValues());
+        return insert;
+    }
+
+    @Override
+    public LogicalPlan visitInsertIntoTable(SqlBaseParser.InsertIntoTableContext ctx) {
+        Insert insert = new Insert();
+        From from = new From(ctx.identifierReference().getText());
+        if (ctx.identifierList() != null) {
+            List<SqlBaseParser.ErrorCapturingIdentifierContext> errorCapturingIdentifierContexts = ctx.identifierList().identifierSeq().errorCapturingIdentifier();
+            List<Field> fields = new ArrayList<>();
+            for (int i = 0; i < errorCapturingIdentifierContexts.size(); i++) {
+                String field = errorCapturingIdentifierContexts.get(i).identifier().getText();
+                if (field.equals(Constant._ID)) {
+                    insert.setIdPosition(i);
+                }
+                fields.add(new Field(field));
+            }
+            insert.setFields(fields);
+        }
+        insert.setFrom(from);
+        return insert;
+    }
+
+    @Override
+    public LogicalPlan visitQueryTermDefault(SqlBaseParser.QueryTermDefaultContext ctx) {
+        return visit(ctx.queryPrimary());
+    }
+
+    @Override
+    public LogicalPlan visitInlineTable(SqlBaseParser.InlineTableContext ctx) {
+        Insert insert = new Insert();
+        ctx.expression()
+                .forEach(e -> {
+                    Insert innerInsert = (Insert) visit(e);
+                    insert.setValues(innerInsert.getValues());
+                });
+        return insert;
+    }
+
+    @Override
+    public LogicalPlan visitRowConstructor(SqlBaseParser.RowConstructorContext ctx) {
+        List<Value> row = ctx.namedExpression().stream()
+                .map(v -> {
+                    LogicalPlan visit = visit(v);
+                    return (Value) visit;
+                })
+                .collect(Collectors.toList());
+        Insert insert = new Insert();
+        insert.setRow(row);
+        return insert;
+    }
+
+    @Override
+    public LogicalPlan visitNamedExpression(SqlBaseParser.NamedExpressionContext ctx) {
+        SqlBaseParser.BooleanExpressionContext tree = ctx.expression().booleanExpression();
+        return visit(tree);
+    }
+
+    @Override
+    public LogicalPlan visitConstantDefault(SqlBaseParser.ConstantDefaultContext ctx) {
+        return new Value(visit(ctx.constant()));
     }
 }

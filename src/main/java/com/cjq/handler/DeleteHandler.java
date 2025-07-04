@@ -12,6 +12,7 @@ public class DeleteHandler implements ResponseHandler {
         BulkByScrollResponse bulkByScrollResponse = (BulkByScrollResponse) response;
         long deleted = bulkByScrollResponse.getDeleted();
         boolean isSuccess = deleted > 0;
-        return new ObjectResult(new ArrayList<>(), new ArrayList<>()).setSuccess(isSuccess);
+        ArrayList<String> headers = new ArrayList<>();
+        return new ObjectResult(headers,new ArrayList<>()).setSuccess(isSuccess);
     }
 }

@@ -21,6 +21,7 @@ public class DefaultQueryActionPlan implements ActionPlan {
     protected Query query;
     protected SearchRequest searchRequest = new SearchRequest();
     protected SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+    private Limit limit;
 
     public DefaultQueryActionPlan(LogicalPlan logicalPlan) {
         this.query = (Query) logicalPlan;
@@ -59,10 +60,11 @@ public class DefaultQueryActionPlan implements ActionPlan {
                 setOrderBy((OrderBy) tmpLogicalPlan);
             }
             if (tmpLogicalPlan instanceof Limit) {
-                setLimit((Limit) tmpLogicalPlan);
+                limit = (Limit) tmpLogicalPlan;
             }
             tmpLogicalPlan = tmpLogicalPlan.getPlan();
         }
+        setLimit();
         searchRequest.source(searchSourceBuilder);
         return searchRequest;
     }
@@ -89,9 +91,11 @@ public class DefaultQueryActionPlan implements ActionPlan {
         // Nothing to do
     }
 
-    protected void setLimit(Limit limit) {
-        searchSourceBuilder.from(limit.getFrom());
-        searchSourceBuilder.size(limit.getSize());
+    protected void setLimit() {
+        if (limit == null) {
+            searchSourceBuilder.from(0);
+            searchSourceBuilder.size(1000);
+        }
     }
 
     protected void setWhere(Where where) {
