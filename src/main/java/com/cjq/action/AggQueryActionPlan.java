@@ -48,7 +48,7 @@ public class AggQueryActionPlan extends DefaultQueryActionPlan {
                     .collect(Collectors.toList());
             for (Field field : normalField) {
                 if (!groupByFieldNames.contains(field.getFieldName())) {
-                    throw new EsSqlParseException("The filed " + field.getFieldName() + "is not aggregation field");
+                    throw new EsSqlParseException("The filed " + field.getFieldName() + " is not aggregation field");
                 }
             }
         }

@@ -8,6 +8,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <!-- Tailwind 配置 -->
@@ -414,7 +415,9 @@
             'clear-search': 'Clear Search',
             'csv-format': 'CSV Format',
             'json-format': 'JSON Format',
-            'excel-format': 'Excel Format'
+            'excel-format': 'Excel Format',
+            'downloading': 'Downloading',
+            'es-query-result': 'EsQueryResult'
         },
         'zh': {
             'app-title': 'ES SQL 查询工具',
@@ -453,7 +456,9 @@
             'clear-search': '清空搜索',
             'csv-format': 'CSV 格式',
             'json-format': 'JSON 格式',
-            'excel-format': 'Excel 格式'
+            'excel-format': 'Excel 格式',
+            'downloading': '正在下载',
+            'es-query-result': 'Es查询结果'
         }
     };
 
@@ -1032,17 +1037,17 @@
                 case 'csv':
                     content = getTableCSV(resultTable);
                     contentType = 'text/csv;charset=utf-8;';
-                    fileName = `es_query_result_${new Date().toISOString().slice(0, 10)}.csv`;
+                    fileName = `${translations[currentLang]['es-query-result']}-${Math.floor(Date.now() / 1000)}.csv`;
                     break;
                 case 'json':
                     content = getTableJSON(resultTable);
                     contentType = 'application/json;charset=utf-8;';
-                    fileName = `es_query_result_${new Date().toISOString().slice(0, 10)}.json`;
+                    fileName = `${translations[currentLang]['es-query-result']}-${Math.floor(Date.now() / 1000)}.json`;
                     break;
                 case 'excel':
-                    content = getTableCSV(resultTable);
-                    contentType = 'application/vnd.ms-excel;charset=utf-8;';
-                    fileName = `es_query_result_${new Date().toISOString().slice(0, 10)}.xls`;
+                    content = getTableExcel(resultTable);
+                    contentType = 'pplication/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+                    fileName = `${translations[currentLang]['es-query-result']}-${Math.floor(Date.now() / 1000)}.xlsx`;
                     break;
                 default:
                     content = getTableCSV(resultTable);
@@ -1061,9 +1066,36 @@
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-
-            showToast(`Downloading ${fileName}`);
+            showToast(`${translations[currentLang]['downloading']} ${fileName}`);
         }
+    }
+
+    // 获取表格 Excel 内容
+    function getTableExcel(table) {
+        const wb = XLSX.utils.book_new();
+        const wsData = [];
+
+        const headerCells = table.rows[0].cells;
+        const headerRow = [];
+        for (let i = 0; i < headerCells.length; i++) {
+            headerRow.push(headerCells[i].textContent.trim());
+        }
+        wsData.push(headerRow);
+
+        for (let i = 1; i < table.rows.length; i++) {
+            const cells = table.rows[i].cells;
+            const dataRow = [];
+            for (let j = 0; j < cells.length; j++) {
+                // 处理可能存在的 span 元素
+                const span = cells[j].querySelector('span');
+                dataRow.push(span ? span.textContent.trim() : cells[j].textContent.trim());
+            }
+            wsData.push(dataRow);
+        }
+
+        const ws = XLSX.utils.aoa_to_sheet(wsData);
+        XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+        return XLSX.write(wb, {bookType: 'xlsx', type: 'array'});
     }
 
     // 获取表格 JSON 内容

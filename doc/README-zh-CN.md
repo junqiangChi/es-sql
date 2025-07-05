@@ -108,9 +108,9 @@ http://localhost:9200/es_sql_plugin
     - ✅ SHOW TABLES
     - ✅ SHOW TABLES [FROM | IN] TABLE_NAME
     - ✅ SHOW TABLES LIKE 'PATTERN'
-- ✅ INSERT
+- ✅ INSERT INTO
     - ✅ INSERT INTO [_id, F1, F2] TABLE_NAME VALUES ('V1','V2','V3'), ('V4','V5','V6')
-        - 如果字段名中包含`_id`,则认为这个值为`文档ID`
+        - 如果字段名中包含`_id`,则认为对应值为`文档ID`
 - ✅ DELETE
     - ✅ DELETE FROM TABLE_NAME [WHERE]
         - 如果`WHERE`是空, 则会删除整个索引的数据
