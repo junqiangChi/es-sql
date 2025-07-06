@@ -7,4 +7,6 @@ import java.io.IOException;
 
 public interface Executor {
     ActionResponse execute(ActionRequest request) throws IOException;
+
+    ActionResponse webExecutor(ActionRequest request);
 }

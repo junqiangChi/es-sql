@@ -13,7 +13,7 @@ public class DropHandler implements ResponseHandler {
     public HandlerResult handle(ActionResponse response) {
         AcknowledgedResponse acknowledgedResponse = (AcknowledgedResponse) response;
         if (acknowledgedResponse.isAcknowledged()) {
-            return new HandlerResult(new ArrayList<>(), new ArrayList<>()).setSuccess(true);
+            return new HandlerResult(new ArrayList<>(), new ArrayList<>()).setSuccess(true, 0L).setDml(true);
         }
         throw new ElasticsearchExecuteException("Drop failed");
     }

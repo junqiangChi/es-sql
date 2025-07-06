@@ -5,18 +5,29 @@ import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.client.RequestOptions;
+import org.elasticsearch.client.node.NodeClient;
 
 import java.io.IOException;
 
 public class DropExecutor implements Executor {
-    private final Client client;
+    private  Client client;
+    private  NodeClient nodeClient;
 
     public DropExecutor(Client client) {
         this.client = client;
     }
 
+    public DropExecutor(NodeClient nodeClient) {
+        this.nodeClient = nodeClient;
+    }
+
     @Override
     public ActionResponse execute(ActionRequest request) throws IOException {
         return client.getClient().indices().delete((DeleteIndexRequest) request, RequestOptions.DEFAULT);
+    }
+
+    @Override
+    public ActionResponse webExecutor(ActionRequest request) {
+        return nodeClient.admin().indices().delete((DeleteIndexRequest) request).actionGet();
     }
 }

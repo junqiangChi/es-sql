@@ -3,17 +3,19 @@ package com.cjq.plugin;
 import com.cjq.action.ActionPlan;
 import com.cjq.action.ActionPlanFactory;
 import com.cjq.domain.EqlParserDriver;
+import com.cjq.executor.Executor;
+import com.cjq.executor.ExecutorFactory;
 import com.cjq.handler.HandlerFactory;
 import com.cjq.handler.ResponseHandler;
 import com.cjq.jdbc.HandlerResult;
 import com.cjq.plan.logical.*;
 import org.elasticsearch.action.ActionRequest;
+import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.admin.indices.get.GetIndexRequest;
 import org.elasticsearch.action.admin.indices.get.GetIndexResponse;
 import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.node.NodeClient;
 import org.elasticsearch.common.bytes.BytesReference;
@@ -116,23 +118,14 @@ public class EsSqlRestAction extends BaseRestHandler {
     }
 
     private RestChannelConsumer webExecute(NodeClient client, ActionRequest request, LogicalPlan plan) {
-        if (request instanceof SearchRequest || request instanceof GetIndexRequest) {
-            HandlerFactory handlerFactory = HandlerFactory.getInstance();
-            ResponseHandler handler = handlerFactory.createHandler(plan, new Properties());
-            HandlerResult handlerResult;
-            if (request instanceof SearchRequest) {
-                SearchResponse response = client.search((SearchRequest) request).actionGet();
-                handlerResult = handler.handle(response);
-                return channel -> channel.sendResponse(new BytesRestResponse(RestStatus.OK, XContentType.JSON.mediaType(),
-                        handlerResult.toJsonString()));
-            } else {
-                GetIndexResponse getIndexResponse = client.admin().indices().getIndex((GetIndexRequest) request).actionGet();
-                handlerResult = handler.handle(getIndexResponse);
-            }
-            return channel -> channel.sendResponse(new BytesRestResponse(RestStatus.OK, XContentType.JSON.mediaType(),
-                    handlerResult.toJsonString()));
-        }
-        throw new IllegalArgumentException("Only support query sql");
+        ExecutorFactory executorFactory = ExecutorFactory.getInstance();
+        Executor actionPlanWebExecutor = executorFactory.createActionPlanWebExecutor(plan, client);
+        ActionResponse response = actionPlanWebExecutor.webExecutor(request);
+        HandlerFactory handlerFactory = HandlerFactory.getInstance();
+        ResponseHandler handler = handlerFactory.createHandler(plan, new Properties());
+        HandlerResult handlerResult = handler.handle(response);
+        return channel -> channel.sendResponse(new BytesRestResponse(RestStatus.OK, XContentType.JSON.mediaType(),
+                handlerResult.isDml() ? handlerResult.dmlToJsonStr() : handlerResult.resultToJsonStr()));
     }
 
 

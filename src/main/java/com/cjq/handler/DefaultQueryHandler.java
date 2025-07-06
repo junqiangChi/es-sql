@@ -61,7 +61,8 @@ public class DefaultQueryHandler implements ResponseHandler {
                 || query.getSelect().getFields().stream().map(Field::getFieldName).collect(Collectors.toList()).contains(_INDEX);
         this.isIncludeDocID = Boolean.parseBoolean(properties.getProperty(ElasticsearchJdbcConfig.INCLUDE_DOC_ID.getName(),
                 ElasticsearchJdbcConfig.INCLUDE_DOC_ID.getDefaultValue()))
-                || query.getSelect().getFields().stream().map(Field::getFieldName).collect(Collectors.toList()).contains(_ID);
+                || query.getSelect().getFields().stream().map(Field::getFieldName).collect(Collectors.toList()).contains(_ID)
+                || (query.getSelect().getFields().size() == 1 && query.getSelect().getFields().get(0).getFieldName().equals("*"));
         this.isIncludeType = Boolean.parseBoolean(properties.getProperty(ElasticsearchJdbcConfig.INCLUDE_TYPE.getName(),
                 ElasticsearchJdbcConfig.INCLUDE_TYPE.getDefaultValue()))
                 || query.getSelect().getFields().stream().map(Field::getFieldName).collect(Collectors.toList()).contains(_TYPE);
@@ -122,34 +123,36 @@ public class DefaultQueryHandler implements ResponseHandler {
         String indexAlias = query.getFrom().getAlias();
         for (SearchHit hit : hits) {
             Map<String, Object> doc = hit.getSourceAsMap() != null ? hit.getSourceAsMap() : new HashMap<>();
+            LinkedHashMap<String, Object> source = new LinkedHashMap<>();
             if (isIncludeScore) {
-                doc.put(Constant._SCORE, hit.getScore());
+                source.put(Constant._SCORE, hit.getScore());
             }
             if (isIncludeType) {
-                doc.put(Constant._TYPE, hit.getType());
+                source.put(Constant._TYPE, hit.getType());
             }
             if (isIncludeDocID) {
-                doc.put(_ID, hit.getId());
+                source.put(_ID, hit.getId());
             }
             if (isIncludeIndex) {
                 if (StringUtils.isNotBlank(indexAlias)) {
-                    doc.put(Constant._INDEX, indexAlias);
+                    source.put(Constant._INDEX, indexAlias);
                 } else {
-                    doc.put(Constant._INDEX, hit.getIndex());
+                    source.put(Constant._INDEX, hit.getIndex());
                 }
             }
-            mergeHeaders(headers, doc, flat);
+
+            source.putAll(doc);
+            mergeHeaders(headers, source, flat);
 
             Map<String, DocumentField> fields = hit.getFields();
             for (DocumentField searchHitField : fields.values()) {
                 List<Object> values = Optional.ofNullable(searchHitField.getValues()).orElse(Collections.emptyList());
                 int size = values.size();
-                doc.put(searchHitField.getName(), size == 1 ? values.get(0) : size > 1 ? values : null);
+                source.put(searchHitField.getName(), size == 1 ? values.get(0) : size > 1 ? values : null);
                 hitFieldNames.add(searchHitField.getName());
                 headers.add(searchHitField.getName());
             }
-
-            docsAsMap.add(doc);
+            docsAsMap.add(source);
         }
         List<String> list = new ArrayList<>(headers);
         if (!fieldNames.isEmpty()) {

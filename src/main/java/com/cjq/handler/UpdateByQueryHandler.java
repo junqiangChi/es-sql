@@ -22,13 +22,14 @@ public class UpdateByQueryHandler implements ResponseHandler {
                 errorMsg.append("[doc_id: ").append(bulkFailures.get(i).getId()).append(", ");
                 errorMsg.append("status: ").append(bulkFailures.get(i).getStatus()).append(", ");
                 errorMsg.append("reason: ").append(bulkFailures.get(i).getMessage()).append("]");
-                if (i < bulkFailures.size() - 1){
+                if (i < bulkFailures.size() - 1) {
                     errorMsg.append(", ");
                 }
             }
             errorMsg.append("]");
             throw new ElasticsearchExecuteException(errorMsg.toString());
         }
-        return new HandlerResult(new ArrayList<>(),new ArrayList<>()).setSuccess(true);
+        return new HandlerResult(new ArrayList<>(), new ArrayList<>())
+                .setSuccess(true, bulkByScrollResponse.getUpdated()).setDml(true);
     }
 }

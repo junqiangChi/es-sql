@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ES SQL Query Tool</title>
+    <title>Elasticsearch SQL Tool</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
@@ -87,6 +87,11 @@
             .table-cell-align-center {
                 @apply text-center;
             }
+
+            /* 历史记录样式 */
+            .history-item {
+                @apply px-4 py-3 hover:bg-gray-100 cursor-pointer transition-colors duration-150 text-sm;
+            }
         }
 
         @keyframes fadeIn {
@@ -121,6 +126,20 @@
         .number-cell {
             @apply text-left font-mono;
         }
+
+        #historyDropdown::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #historyDropdown::-webkit-scrollbar-thumb {
+            background-color: #c5c5c5;
+            border-radius: 3px;
+        }
+
+        #historyDropdown::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 3px;
+        }
     </style>
 </head>
 
@@ -131,7 +150,7 @@
     <div class="container mx-auto px-4 py-3 flex justify-between items-center">
         <div class="flex items-center space-x-2">
             <i class="fa fa-search text-primary text-2xl"></i>
-            <h1 class="text-xl font-bold text-primary"><span data-lang="app-title">ES SQL Query Tool</span></h1>
+            <h1 class="text-xl font-bold text-primary"><span data-lang="app-title">Elasticsearch SQL Tool</span></h1>
         </div>
         <div class="flex items-center space-x-4">
             <div class="relative">
@@ -155,7 +174,7 @@
         <div class="flex justify-between items-center mb-4">
             <h2 class="text-lg font-semibold text-dark flex items-center">
                 <i class="fa fa-code text-primary mr-2"></i>
-                <span data-lang="query-area">Query Area</span>
+                <span data-lang="query-area">SQL Area</span>
             </h2>
             <div class="flex space-x-2">
                 <button id="clearBtn"
@@ -163,6 +182,28 @@
                     <i class="fa fa-trash-o mr-1"></i>
                     <span data-lang="clear">Clear</span>
                 </button>
+                <!-- 历史记录按钮 -->
+                <div class="relative">
+                    <button id="historyBtn"
+                            class="px-3 py-1.5 bg-gray-100 hover:bg-gray-300 text-dark rounded-lg transition-all-300 flex items-center">
+                        <i class="fa fa-history mr-1"></i>
+                        <span data-lang="history">History</span>
+                    </button>
+                    <!-- 历史记录下拉菜单 - 添加了max-h-60和overflow-y-auto类 -->
+                    <div id="historyDropdown"
+                         class="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl z-50 max-h-60 overflow-y-auto hidden">
+                        <div class="p-2 border-b border-gray-200 sticky top-0 bg-white">
+                            <h4 class="text-sm font-medium text-gray-900" data-lang="recent-queries">Recent Queries</h4>
+                        </div>
+                        <div id="historyList" class="divide-y divide-gray-100"></div>
+                        <div class="p-2 border-t border-gray-200 flex justify-end sticky bottom-0 bg-white">
+                            <button id="clearHistoryBtn" class="text-xs text-red-500 hover:text-red-700">
+                                <i class="fa fa-trash mr-1"></i>
+                                <span data-lang="clear-history">Clear All</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -181,13 +222,36 @@
             <button id="executeBtn"
                     class="bg-primary hover:bg-primary/90 text-white px-6 py-2 rounded-lg shadow-md hover:shadow-lg transition-all-300 flex items-center">
                 <i class="fa fa-play mr-2"></i>
-                <span data-lang="execute">Execute Query</span>
+                <span data-lang="execute">Execute SQL</span>
             </button>
         </div>
     </div>
 
-    <!-- 结果区域 -->
-    <div id="resultContainer"
+    <!-- DML结果区域 -->
+    <div id="dmlResultContainer" class="bg-white rounded-xl shadow-md p-6 mb-8 hidden">
+        <div class="flex items-center">
+            <div class="mr-4 text-2xl">
+                <i id="dmlResultIcon" class="fa fa-check-circle text-success"></i>
+            </div>
+            <div>
+                <h3 class="text-lg font-semibold" id="dmlResultTitle" data-lang="dml-success">Operation Successful</h3>
+                <div class="mt-1">
+                    <div id="dmlDetails" class="mt-3 hidden">
+                        <pre id="dmlResultDetails" class="bg-gray-50 p-3 rounded-lg text-xs font-mono overflow-x-auto"></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="mt-4 flex justify-end">
+            <button id="viewDetailsBtn" class="text-primary hover:text-primary/80 flex items-center">
+                <span data-lang="view-details">View Details</span>
+                <i class="fa fa-chevron-down ml-1"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- 查询结果区域 -->
+    <div id="queryResultContainer"
          class="bg-white rounded-xl shadow-md p-6 mb-8 hidden transform transition-all duration-300 hover:shadow-lg">
         <div class="flex justify-between items-center mb-4">
             <h2 class="text-lg font-semibold text-dark flex items-center">
@@ -362,7 +426,7 @@
             <div class="mb-4 md:mb-0">
                 <div class="flex items-center space-x-2">
                     <i class="fa fa-search text-primary"></i>
-                    <span class="font-semibold" data-lang="app-title">ES SQL Query Tool</span>
+                    <span class="font-semibold" data-lang="app-title">Elasticsearch SQL Tool</span>
                 </div>
             </div>
             <div class="flex space-x-4">
@@ -379,30 +443,29 @@
     // 语言包
     const translations = {
         'en': {
-            'app-title': 'ES SQL Query Tool',
-            'app-desc': 'Efficiently query Elasticsearch data',
-            'query-area': 'Query Area',
+            'app-title': 'Elasticsearch SQL Tool',
+            'query-area': 'SQL Area',
             'clear': 'Clear',
             'characters': 'characters',
-            'execute': 'Execute Query',
+            'execute': 'Execute SQL',
             'result': 'Query Result',
             'records': 'records',
             'copy': 'Copy',
             'download': 'Download',
             'no-results': 'No results found',
-            'no-results-desc': 'Try modifying your query or check the syntax',
-            'loading': 'Executing query...',
+            'no-results-desc': 'Try modifying your SQL or check the syntax',
+            'loading': 'Executing SQL...',
             'please-wait': 'Please wait...',
-            'error-occurred': 'An error occurred while executing the query',
+            'error-occurred': 'An error occurred while executing the SQL',
             'all-rights': 'All rights reserved',
             'toast-copied': 'Content copied to clipboard',
             'toast-copy-failed': 'Failed to copy, please copy manually',
-            'toast-execute-success': 'Query executed successfully',
-            'toast-execute-failed': 'Query execution failed',
-            'toast-enter-query': 'Please enter an SQL query',
+            'toast-execute-success': 'SQL executed successfully',
+            'toast-execute-failed': 'SQL execution failed',
+            'toast-enter-query': 'Please enter an SQL',
             'toast-api-error': 'API call failed',
             'toast-api-error-details': 'Please check the error details',
-            'json-format-error': 'There are no headers or rows in the returned JSO results',
+            'json-format-error': 'There are no headers or rows in the returned JSON results',
             'search-placeholder': 'Search in results...',
             'total-records': 'Total Records',
             'total-columns': 'Total Columns',
@@ -417,33 +480,51 @@
             'json-format': 'JSON Format',
             'excel-format': 'Excel Format',
             'downloading': 'Downloading',
-            'es-query-result': 'EsQueryResult'
+            'es-query-result': 'EsQueryResult',
+            'dml-success': 'Operation Successful',
+            'dml-failure': 'Operation Failed',
+            'view-details': 'View Details',
+            'hide-details': 'Hide Details',
+            'dml-rows-affected': 'Rows affected:',
+            'dml-insert-success': 'Data inserted successfully',
+            'dml-update-success': 'Data updated successfully',
+            'dml-delete-success': 'Data deleted successfully',
+            'dml-create-success': 'Index created successfully',
+            'dml-alter-success': 'Index altered successfully',
+            'dml-drop-success': 'Index dropped successfully',
+            'dml-describe-success': 'Index described successfully',
+            'dml-show-success': 'Tables listed successfully',
+            'history': 'History',
+            'recent-queries': 'Recent Queries',
+            'clear-history': 'Clear All',
+            'no-history': 'No history yet',
+            'toast-history-cleared': 'History cleared',
+            'toast-history-cleared-error': 'Failed to clear history'
         },
         'zh': {
-            'app-title': 'ES SQL 查询工具',
-            'app-desc': '高效查询 Elasticsearch 数据',
-            'query-area': '查询区域',
+            'app-title': 'Elasticsearch SQL 工具',
+            'query-area': 'SQL区域',
             'clear': '清空',
             'characters': '字符',
-            'execute': '执行查询',
+            'execute': '执行 SQL',
             'result': '查询结果',
             'records': '记录',
             'copy': '复制',
             'download': '下载',
             'no-results': '没有找到结果',
-            'no-results-desc': '尝试修改查询条件或检查语法是否正确',
-            'loading': '正在执行查询...',
+            'no-results-desc': '尝试修改SQL或检查语法是否正确',
+            'loading': '正在执行 SQL...',
             'please-wait': '请稍候...',
-            'error-occurred': '执行查询时出错',
+            'error-occurred': '执行 SQL 时出错',
             'all-rights': '保留所有权利',
             'toast-copied': '内容已复制到剪贴板',
             'toast-copy-failed': '复制失败，请手动复制',
-            'toast-execute-success': '查询执行成功',
-            'toast-execute-failed': '查询执行失败',
+            'toast-execute-success': 'SQL 执行成功',
+            'toast-execute-failed': 'SQL 执行失败',
             'toast-api-error': '接口调用失败',
             'toast-api-error-details': '请查看错误详情',
             'json-format-error': '返回JSO结果中没有headers或者rows',
-            'toast-enter-query': '请输入 SQL 查询',
+            'toast-enter-query': '请输入 SQL',
             'search-placeholder': '在结果中搜索...',
             'total-records': '总记录数',
             'total-columns': '总列数',
@@ -458,7 +539,26 @@
             'json-format': 'JSON 格式',
             'excel-format': 'Excel 格式',
             'downloading': '正在下载',
-            'es-query-result': 'Es查询结果'
+            'es-query-result': 'Es查询结果',
+            'dml-success': '操作成功',
+            'dml-failure': '操作失败',
+            'view-details': '查看详情',
+            'hide-details': '隐藏详情',
+            'dml-rows-affected': '影响行数:',
+            'dml-insert-success': '数据插入成功',
+            'dml-update-success': '数据更新成功',
+            'dml-delete-success': '数据删除成功',
+            'dml-create-success': '索引创建成功',
+            'dml-alter-success': '索引修改成功',
+            'dml-drop-success': '索引删除成功',
+            'dml-describe-success': '索引描述成功',
+            'dml-show-success': '表列表获取成功',
+            'history': '历史记录',
+            'recent-queries': '最近查询',
+            'clear-history': '清空全部',
+            'no-history': '暂无历史记录',
+            'toast-history-cleared': '历史记录已清空',
+            'toast-history-cleared-error': '清空历史记录失败'
         }
     };
 
@@ -475,6 +575,145 @@
 
     // 当前语言
     let currentLang = 'en';
+
+    const MAX_HISTORY = 10;
+    let queryHistory = [];
+
+    // 初始化历史记录
+    function initHistory() {
+        try {
+            const savedHistory = localStorage.getItem('sqlHistory');
+            if (savedHistory) {
+                queryHistory = JSON.parse(savedHistory);
+                renderHistory();
+            }
+        } catch (e) {
+            console.error('Failed to load history:', e);
+        }
+    }
+
+    // 保存历史记录到本地存储
+    function saveHistory() {
+        try {
+            localStorage.setItem('sqlHistory', JSON.stringify(queryHistory));
+        } catch (e) {
+            console.error('Failed to save history:', e);
+        }
+    }
+
+    // 添加查询到历史记录
+    function addToHistory(sql) {
+        // 清理SQL（移除多余空格）
+        const cleanedSql = sql.trim();
+
+        // 如果SQL为空则不添加
+        if (!cleanedSql) return;
+
+        // 检查是否已经存在相同的查询
+        const existingIndex = queryHistory.findIndex(item => item.sql === cleanedSql);
+
+        // 如果已存在，移除旧记录
+        if (existingIndex !== -1) {
+            queryHistory.splice(existingIndex, 1);
+        }
+
+        // 添加新记录到数组开头
+        queryHistory.unshift({
+            sql: cleanedSql,
+            timestamp: new Date().toISOString()
+        });
+
+        // 限制历史记录数量
+        if (queryHistory.length > MAX_HISTORY) {
+            queryHistory.pop();
+        }
+
+        // 保存到本地存储
+        saveHistory();
+
+        // 重新渲染历史记录列表
+        renderHistory();
+
+    }
+
+    // 渲染历史记录列表
+    function renderHistory() {
+        const historyList = document.getElementById('historyList');
+        historyList.innerHTML = '';
+
+        if (queryHistory.length === 0) {
+            const emptyItem = document.createElement('div');
+            emptyItem.className = 'history-item text-center text-gray-500 py-6';
+            emptyItem.textContent = translations[currentLang]['no-history'];
+            historyList.appendChild(emptyItem);
+            return;
+        }
+
+        queryHistory.forEach((historyItem, index) => {
+            const historyElement = document.createElement('div');
+            historyElement.className = 'history-item';
+            historyElement.dataset.index = index;
+
+            // 格式化时间
+            const date = new Date(historyItem.timestamp);
+            const timeString = date.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+
+            historyElement.innerHTML = `
+            <div class="flex justify-between items-start">
+                <div class="font-medium text-gray-800 truncate flex-1 pr-2">${historyItem.sql}</div>
+                <div class="text-xs text-gray-500 mt-0.5 flex-shrink-0">${timeString}</div>
+            </div>
+        `;
+
+            historyElement.addEventListener('click', () => {
+                document.getElementById('sqlQuery').value = historyItem.sql;
+                document.getElementById('charCount').textContent = historyItem.sql.length;
+                document.getElementById('historyDropdown').classList.add('hidden');
+            });
+
+            historyList.appendChild(historyElement);
+        });
+    }
+
+    // 清空历史记录
+    function clearHistory() {
+        try {
+            queryHistory = [];
+            localStorage.removeItem('sqlHistory');
+            renderHistory();
+            showToast(translations[currentLang]['toast-history-cleared'], 'success');
+        } catch (e) {
+            console.error('Failed to clear history:', e);
+            showToast(translations[currentLang]['toast-history-cleared-error'], 'error');
+        }
+    }
+
+    // 在DOMContentLoaded事件中添加初始化历史记录
+    document.addEventListener('DOMContentLoaded', function () {
+        updateLanguage(currentLang);
+        initHistory();  // 初始化历史记录
+
+        // 历史记录按钮点击事件
+        document.getElementById('historyBtn').addEventListener('click', function (e) {
+            e.stopPropagation();
+            const dropdown = document.getElementById('historyDropdown');
+            dropdown.classList.toggle('hidden');
+        });
+
+        // 点击页面其他区域关闭历史记录下拉菜单
+        document.addEventListener('click', function (e) {
+            if (!document.getElementById('historyBtn').contains(e.target) &&
+                !document.getElementById('historyDropdown').contains(e.target)) {
+                document.getElementById('historyDropdown').classList.add('hidden');
+            }
+        });
+
+        // 清空历史记录按钮事件
+        document.getElementById('clearHistoryBtn').addEventListener('click', function (e) {
+            e.stopPropagation();
+            clearHistory();
+        });
+    });
 
     // 更新界面语言
     function updateLanguage(lang) {
@@ -513,7 +752,7 @@
         charCount.textContent = this.value.length;
     });
 
-    // 执行查询
+    // 执行SQL
     document.getElementById('executeBtn').addEventListener('click', executeQuery);
 
     // 清空按钮
@@ -635,6 +874,24 @@
         }
     });
 
+    // 查看详情按钮
+    document.getElementById('viewDetailsBtn').addEventListener('click', function () {
+        const detailsEl = document.getElementById('dmlDetails');
+        const iconEl = this.querySelector('i');
+
+        if (detailsEl.classList.contains('hidden')) {
+            detailsEl.classList.remove('hidden');
+            iconEl.classList.remove('fa-chevron-down');
+            iconEl.classList.add('fa-chevron-up');
+            this.querySelector('span').textContent = translations[currentLang]['hide-details'] || 'Hide Details';
+        } else {
+            detailsEl.classList.add('hidden');
+            iconEl.classList.remove('fa-chevron-up');
+            iconEl.classList.add('fa-chevron-down');
+            this.querySelector('span').textContent = translations[currentLang]['view-details'];
+        }
+    });
+
     async function callApi(sql) {
         try {
             try {
@@ -646,17 +903,21 @@
                     },
                     body: JSON.stringify({"sql": sql})
                 });
-                const data = await response.json()
+
+                // 处理不同类型的响应
                 if (!response.ok) {
-                    console.error(data)
-                    showToast(
-                        `${translations[currentLang]['toast-api-error']} - ${data.error.reason}`,
-                        'error',
-                        data
-                    );
-                    throw new Error(`${translations[currentLang]['toast-execute-failed']}, ${translations[currentLang]['reason']}: ${data.error.reason}`);
+                    const errorData = await response.json();
+                    console.error(errorData);
+                    throw new Error(errorData.error?.reason || 'Unknown error');
                 }
-                return data;
+
+                // 尝试解析为JSON
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    return await response.json();
+                } else {
+                    return await response.text();
+                }
             } catch (error) {
                 throw error;
             }
@@ -665,23 +926,31 @@
         }
     }
 
-    // 执行查询函数
+    // 执行SQL函数
     function executeQuery() {
         const sql = sqlQuery.value.trim();
         if (!sql) {
             showToast(translations[currentLang]['toast-enter-query'], 'warning');
             return;
         }
+        // 添加到历史记录
+        addToHistory(sql);
 
         // 显示加载状态
         document.getElementById('loadingIndicator').classList.remove('hidden');
-        document.getElementById('resultContainer').classList.add('hidden');
+        document.getElementById('queryResultContainer').classList.add('hidden');
+        document.getElementById('dmlResultContainer').classList.add('hidden');
         document.getElementById('errorContainer').classList.add('hidden');
 
         callApi(sql)
             .then(data => {
                 document.getElementById('loadingIndicator').classList.add('hidden');
-                processResult(data);
+                // 判断是查询结果还是DML结果
+                if (isQueryResult(sql)) {
+                    processQueryResult(data);
+                } else {
+                    processDmlResult(sql, data);
+                }
             })
             .catch(error => {
                 document.getElementById('loadingIndicator').classList.add('hidden');
@@ -690,6 +959,144 @@
                 document.getElementById('errorMessage').textContent = error.message;
                 document.getElementById('errorDetails').textContent = error.stack || error.message;
             });
+    }
+
+    // 判断是否为查询结果
+    function isQueryResult(sql) {
+        return sql.toUpperCase().startsWith("SELECT")
+    }
+
+    // 处理DML结果
+    function processDmlResult(sql, data) {
+        const dmlResultContainer = document.getElementById('dmlResultContainer');
+        const dmlResultTitle = document.getElementById('dmlResultTitle');
+        const dmlResultIcon = document.getElementById('dmlResultIcon');
+        const dmlResultDetails = document.getElementById('dmlResultDetails');
+        const dmlDetails = document.getElementById('dmlDetails');
+        const viewDetailsBtn = document.getElementById('viewDetailsBtn');
+
+        // 重置UI状态
+        dmlDetails.classList.add('hidden');
+        viewDetailsBtn.querySelector('i').className = 'fa fa-chevron-down ml-1';
+        viewDetailsBtn.querySelector('span').textContent = translations[currentLang]['view-details'];
+
+        // 显示DML结果容器
+        dmlResultContainer.classList.remove('hidden');
+
+        // 判断操作类型
+        const sqlType = sql.trim().substring(0, 6).toUpperCase();
+        let message = '';
+        let title = translations[currentLang]['dml-success'];
+        let iconClass = 'fa-check-circle text-success';
+
+        // 根据SQL类型设置不同的消息
+        if (sqlType.includes('INSERT')) {
+            message = translations[currentLang]['dml-insert-success'];
+        } else if (sqlType.includes('UPDATE')) {
+            message = translations[currentLang]['dml-update-success'];
+        } else if (sqlType.includes('DELETE')) {
+            message = translations[currentLang]['dml-delete-success'];
+        } else if (sqlType.includes('CREATE')) {
+            message = translations[currentLang]['dml-create-success'];
+        } else if (sqlType.includes('ALTER')) {
+            message = translations[currentLang]['dml-alter-success'];
+        } else if (sqlType.includes('DROP')) {
+            message = translations[currentLang]['dml-drop-success'];
+        } else if (sqlType.includes('DESCRIBE') || sqlType.includes('DESC')) {
+            message = translations[currentLang]['dml-describe-success'];
+        } else if (sqlType.includes('SHOW')) {
+            message = translations[currentLang]['dml-show-success'];
+        } else {
+            message = translations[currentLang]['dml-success'];
+        }
+
+        // 如果有行数信息
+        if (data && typeof data === 'object' && data.effectRows !== undefined) {
+            message += ` ${translations[currentLang]['dml-rows-affected']} ${data.effectRows}`;
+        }
+
+        // 更新UI
+        dmlResultTitle.textContent = title;
+        dmlResultIcon.className = `fa ${iconClass} text-2xl`;
+
+        // 设置详细结果
+        if (data) {
+            dmlResultDetails.textContent = typeof data === 'object'
+                ? JSON.stringify(data, null, 2)
+                : data;
+        }
+
+        // 显示成功提示
+        showToast(message);
+    }
+
+    // 处理查询结果
+    function processQueryResult(data) {
+        const queryResultContainer = document.getElementById('queryResultContainer');
+        const resultTable = document.getElementById('resultTable');
+        const tableHeader = document.getElementById('tableHeader');
+        const tableBody = document.getElementById('tableBody');
+        const resultCount = document.getElementById('resultCount');
+        const emptyResult = document.getElementById('emptyResult');
+        const paginationControls = document.getElementById('paginationControls');
+        const resultStats = document.getElementById('resultStats');
+
+        // 清空表格
+        tableHeader.innerHTML = '';
+        tableBody.innerHTML = '';
+
+        // 检查是否有结果
+        if (!data || !data.headers || !data.rows || data.rows.length === 0) {
+            queryResultContainer.classList.remove('hidden');
+            emptyResult.classList.remove('hidden');
+            resultTable.classList.add('hidden');
+            paginationControls.classList.add('hidden');
+            resultStats.classList.add('hidden');
+            resultCount.textContent = `(0 ${translations[currentLang]['records']})`;
+            return;
+        }
+
+        // 保存原始数据
+        originalData = [...data.rows];
+        filteredData = [...data.rows];
+
+        // 重置分页和排序
+        currentPage = 1;
+        pageSize = parseInt(document.getElementById('pageSize').value);
+        sortField = null;
+        sortDirection = 'asc';
+
+        // 显示结果
+        queryResultContainer.classList.remove('hidden');
+        emptyResult.classList.add('hidden');
+        resultTable.classList.remove('hidden');
+        paginationControls.classList.remove('hidden');
+        resultStats.classList.remove('hidden');
+
+        // 生成表头
+        data.headers.forEach((header, index) => {
+            const th = document.createElement('th');
+            th.setAttribute('scope', 'col');
+            th.className = 'px-6 py-4 text-left text-xs font-medium text-primary tracking-wider table-header-cell table-cell-border sortable-header';
+            th.innerHTML = `${header} <i class="fa fa-sort ml-1 text-primary/60"></i>`;
+            th.addEventListener('click', () => handleSort(index));
+            tableHeader.appendChild(th);
+        });
+
+        // 渲染表格
+        renderTable();
+
+        // 更新分页控件
+        updatePagination();
+
+        // 更新统计信息
+        updateResultStats();
+
+        // 更新记录数
+        resultCount.textContent = `(${data.rows.length.toLocaleString()} ${translations[currentLang]['records']})`;
+
+        // 显示成功提示
+        showToast(`${translations[currentLang]['toast-execute-success']}, ${data.rows.length.toLocaleString()} ${translations[currentLang]['records']}`);
     }
 
     function showToast(message, type = 'success', details = '') {
@@ -771,75 +1178,6 @@
                 toast.parentNode.removeChild(toast);
             }
         }, 300);
-    }
-
-    // 处理查询结果
-    function processResult(data) {
-        const resultContainer = document.getElementById('resultContainer');
-        const resultTable = document.getElementById('resultTable');
-        const tableHeader = document.getElementById('tableHeader');
-        const tableBody = document.getElementById('tableBody');
-        const resultCount = document.getElementById('resultCount');
-        const emptyResult = document.getElementById('emptyResult');
-        const paginationControls = document.getElementById('paginationControls');
-        const resultStats = document.getElementById('resultStats');
-
-        // 清空表格
-        tableHeader.innerHTML = '';
-        tableBody.innerHTML = '';
-
-        // 检查是否有结果
-        if (!data || !data.headers || !data.rows || data.rows.length === 0) {
-            resultContainer.classList.remove('hidden');
-            emptyResult.classList.remove('hidden');
-            resultTable.classList.add('hidden');
-            paginationControls.classList.add('hidden');
-            resultStats.classList.add('hidden');
-            resultCount.textContent = `(0 ${translations[currentLang]['records']})`;
-            return;
-        }
-
-        // 保存原始数据
-        originalData = [...data.rows];
-        filteredData = [...data.rows];
-
-        // 重置分页和排序
-        currentPage = 1;
-        pageSize = parseInt(document.getElementById('pageSize').value);
-        sortField = null;
-        sortDirection = 'asc';
-
-        // 显示结果
-        resultContainer.classList.remove('hidden');
-        emptyResult.classList.add('hidden');
-        resultTable.classList.remove('hidden');
-        paginationControls.classList.remove('hidden');
-        resultStats.classList.remove('hidden');
-
-        // 生成表头
-        data.headers.forEach((header, index) => {
-            const th = document.createElement('th');
-            th.setAttribute('scope', 'col');
-            th.className = 'px-6 py-4 text-left text-xs font-medium text-primary tracking-wider table-header-cell table-cell-border sortable-header';
-            th.innerHTML = `${header} <i class="fa fa-sort ml-1 text-primary/60"></i>`;
-            th.addEventListener('click', () => handleSort(index));
-            tableHeader.appendChild(th);
-        });
-
-        // 渲染表格
-        renderTable();
-
-        // 更新分页控件
-        updatePagination();
-
-        // 更新统计信息
-        updateResultStats();
-
-        // 更新记录数
-        resultCount.textContent = `(${data.rows.length.toLocaleString()} ${translations[currentLang]['records']})`;
-
-        // 显示成功提示
-        showToast(`${translations[currentLang]['toast-execute-success']}, ${data.rows.length.toLocaleString()} ${translations[currentLang]['records']}`);
     }
 
     // 渲染表格（分页）
@@ -1046,7 +1384,7 @@
                     break;
                 case 'excel':
                     content = getTableExcel(resultTable);
-                    contentType = 'pplication/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+                    contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
                     fileName = `${translations[currentLang]['es-query-result']}-${Math.floor(Date.now() / 1000)}.xlsx`;
                     break;
                 default:

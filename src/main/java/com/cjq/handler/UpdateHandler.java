@@ -19,11 +19,9 @@ public class UpdateHandler implements ResponseHandler {
             case NOT_FOUND:
                 throw new ElasticsearchExecuteException("DocId: " + getResult.getId() + " is not exist");
             case OK:
-                return new HandlerResult(new ArrayList<>(), new ArrayList<>()).setSuccess(true);
+                return new HandlerResult(new ArrayList<>(), new ArrayList<>()).setSuccess(true, 1L).setDml(true);
             default:
                 throw new ElasticsearchExecuteException("Error: " + status.name());
         }
-
-
     }
 }

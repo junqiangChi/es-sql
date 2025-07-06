@@ -12,7 +12,9 @@ import java.util.List;
 public class HandlerResult {
     private final List<String> headers;
     private final List<List<Object>> rows;
+    private boolean isDml;
     private boolean isSuccess;
+    private Long number;
 
 
     public HandlerResult(List<String> headers, List<List<Object>> lines) {
@@ -37,7 +39,46 @@ public class HandlerResult {
         return this;
     }
 
-    public String toJsonString() {
+    public Long getNumber() {
+        return number;
+    }
+
+    public void setNumber(Long number) {
+        this.number = number;
+    }
+
+    public HandlerResult setDml(boolean dml) {
+        isDml = dml;
+        return this;
+    }
+
+    public boolean isDml() {
+        return isDml;
+    }
+
+    public HandlerResult setSuccess(boolean success, Long number) {
+        this.isSuccess = success;
+        this.number = number;
+        return this;
+    }
+
+    public String dmlToJsonStr() {
+        try {
+            XContentBuilder builder = XContentFactory.contentBuilder(XContentType.JSON);
+            builder.startObject();
+            builder.field("success");
+            builder.value(isSuccess);
+            builder.field("effectRows");
+            builder.value(number);
+            builder.endObject();
+            BytesReference bytesReference = BytesReference.bytes(builder);
+            return bytesReference.utf8ToString();
+        } catch (IOException e) {
+            return "{\"success\":false,\"effectRows\":0}";
+        }
+    }
+
+    public String resultToJsonStr() {
         try {
             XContentBuilder builder = XContentFactory.contentBuilder(XContentType.JSON);
             builder.startObject();

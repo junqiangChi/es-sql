@@ -6,6 +6,7 @@ import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.bulk.BulkResponse;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 
 public class InsertHandler implements ResponseHandler {
     @Override
@@ -14,6 +15,7 @@ public class InsertHandler implements ResponseHandler {
         if (bulkResponse.hasFailures()) {
             throw new ElasticsearchExecuteException("insert failed, error: " + bulkResponse.buildFailureMessage());
         }
-        return new HandlerResult(new ArrayList<>(),new ArrayList<>()).setSuccess(true);
+        long rows = bulkResponse.getItems().length;
+        return new HandlerResult(new ArrayList<>(), new ArrayList<>()).setSuccess(true, rows).setDml(true);
     }
 }
