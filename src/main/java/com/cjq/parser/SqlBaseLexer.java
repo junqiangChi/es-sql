@@ -11,7 +11,7 @@ import org.antlr.v4.runtime.misc.Utils;
 @SuppressWarnings({"all", "warnings", "unchecked", "unused", "cast", "CheckReturnValue", "this-escape"})
 public class SqlBaseLexer extends Lexer {
     static {
-        RuntimeMetaData.checkVersion("4.13.2", RuntimeMetaData.VERSION);
+        RuntimeMetaData.checkVersion("4.13.1", RuntimeMetaData.VERSION);
     }
 
     protected static final DFA[] _decisionToDFA;

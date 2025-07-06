@@ -1,7 +1,7 @@
 package com.cjq.handler;
 
 import com.cjq.exception.ElasticsearchExecuteException;
-import com.cjq.jdbc.ObjectResult;
+import com.cjq.jdbc.HandlerResult;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 
@@ -10,10 +10,10 @@ import java.util.ArrayList;
 public class DropHandler implements ResponseHandler {
 
     @Override
-    public ObjectResult handle(ActionResponse response) {
+    public HandlerResult handle(ActionResponse response) {
         AcknowledgedResponse acknowledgedResponse = (AcknowledgedResponse) response;
         if (acknowledgedResponse.isAcknowledged()) {
-            return new ObjectResult(new ArrayList<>(), new ArrayList<>()).setSuccess(true);
+            return new HandlerResult(new ArrayList<>(), new ArrayList<>()).setSuccess(true);
         }
         throw new ElasticsearchExecuteException("Drop failed");
     }

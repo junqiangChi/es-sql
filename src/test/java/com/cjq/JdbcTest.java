@@ -99,12 +99,13 @@ public class JdbcTest {
 //        String sql = "select f3,f4,sum(f1) as f33, avg(f2) as avg from my_index1 group by f3,f4";
 //        String sql = "drop table my_index11";
 //        String sql = "show tables";
-        String sql = "show tables like 'my_*'";
-        sqlExecuteQuery(sql);
+//        String sql = "show tables like 'my_*'";
+//        sqlExecuteQuery(sql);
 //        String sql = "drop table my_index123";
 //        String sql = "drop table if exists my_index123";
-//        String sql = "delete from my_index where f1 = '3'";
-//        sqlExecute(sql);
+//        String sql = "update my_index1 set f2 = 2312 by '8'";
+        String sql = "update my_index1 set f2 = 2312 where f1 = 1231231";
+        sqlExecute(sql);
 
     }
 

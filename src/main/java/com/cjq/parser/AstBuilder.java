@@ -9,6 +9,7 @@ import org.antlr.v4.runtime.tree.ParseTree;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -425,6 +426,33 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
 
     @Override
     public LogicalPlan visitConstantDefault(SqlBaseParser.ConstantDefaultContext ctx) {
-        return new Value(visit(ctx.constant()));
+        return visit(ctx.constant());
+    }
+
+    @Override
+    public LogicalPlan visitUpdateTable(SqlBaseParser.UpdateTableContext ctx) {
+        String index = ctx.identifierReference().multipartIdentifier().errorCapturingIdentifier.identifier().getText();
+        From from = new From(index);
+        List<SqlBaseParser.AssignmentContext> assignments = ctx.setClause().assignmentList().assignment();
+        ArrayList<Field> fields = new ArrayList<>();
+        ArrayList<Value> values = new ArrayList<>();
+        HashSet<String> fieldSet = new HashSet<>();
+        assignments.forEach(ass -> {
+            String field = ass.multipartIdentifier().errorCapturingIdentifier.identifier().getText();
+            fieldSet.add(field);
+            fields.add(new Field(field));
+            if (fields.size() != fieldSet.size()) {
+                throw new EsSqlParseException("Duplicate field: " + field + " with Set");
+            }
+            values.add((Value) visit(ass.expression().booleanExpression()));
+        });
+        if (ctx.BY() != null) {
+            String docId = ((Value) visit(ctx.valueExpression())).getText().toString();
+            return new Update(from, fields, values, docId);
+        } else if (ctx.whereClause() != null) {
+            return new UpdateByQuery(from, fields, values, (Where) visit(ctx.whereClause()));
+        } else {
+            throw new EsSqlParseException("WHERE or BY cannot be empty");
+        }
     }
 }

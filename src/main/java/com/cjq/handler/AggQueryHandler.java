@@ -1,7 +1,7 @@
 package com.cjq.handler;
 
 import com.cjq.common.FieldFunction;
-import com.cjq.jdbc.ObjectResult;
+import com.cjq.jdbc.HandlerResult;
 import com.cjq.plan.logical.Field;
 import com.cjq.plan.logical.Query;
 import org.elasticsearch.action.ActionResponse;
@@ -21,7 +21,7 @@ public class AggQueryHandler extends DefaultQueryHandler {
     }
 
     @Override
-    public ObjectResult handle(ActionResponse response) {
+    public HandlerResult handle(ActionResponse response) {
         SearchResponse searchResponse = (SearchResponse) response;
         List<Field> fields = query.getSelect().getFields();
         Aggregations aggregations = searchResponse.getAggregations();
@@ -36,12 +36,12 @@ public class AggQueryHandler extends DefaultQueryHandler {
             if (!groupValues.isEmpty()) {
                 lines = convertMapToList(groupValues);
             }
-            return new ObjectResult(header, lines);
+            return new HandlerResult(header, lines);
         } else {
             List<String> header = new ArrayList<>();
             List<List<Object>> lines = new ArrayList<>();
             handleNoGroupByAggResponse(fields, aggregations, header, lines);
-            return new ObjectResult(header, lines);
+            return new HandlerResult(header, lines);
         }
     }
 

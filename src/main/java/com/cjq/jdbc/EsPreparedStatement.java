@@ -358,7 +358,7 @@ public class EsPreparedStatement implements PreparedStatement {
 
     }
 
-    private ObjectResult getObjectResult() {
+    private HandlerResult getObjectResult() {
         try {
             ActionPlanFactory actionPlanFactory = ActionPlanFactory.getInstance();
             ActionPlan actionPlan = actionPlanFactory.createAction(connection.getClient(), plan);
@@ -375,14 +375,14 @@ public class EsPreparedStatement implements PreparedStatement {
     }
 
     private ResultSet executeSql() {
-        ObjectResult objectResult = getObjectResult();
-        return new EsResultSet(this, objectResult.getHeaders(), objectResult.getRows());
+        HandlerResult handlerResult = getObjectResult();
+        return new EsResultSet(this, handlerResult.getHeaders(), handlerResult.getRows());
     }
 
     @Override
     public boolean execute() throws SQLException {
-        ObjectResult objectResult = getObjectResult();
-        return objectResult.isSuccess();
+        HandlerResult handlerResult = getObjectResult();
+        return handlerResult.isSuccess();
     }
 
     @Override

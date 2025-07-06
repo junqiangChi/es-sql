@@ -9,13 +9,13 @@ import org.elasticsearch.common.xcontent.XContentType;
 import java.io.IOException;
 import java.util.List;
 
-public class ObjectResult {
+public class HandlerResult {
     private final List<String> headers;
     private final List<List<Object>> rows;
     private boolean isSuccess;
 
 
-    public ObjectResult(List<String> headers, List<List<Object>> lines) {
+    public HandlerResult(List<String> headers, List<List<Object>> lines) {
         this.headers = headers;
         this.rows = lines;
     }
@@ -32,7 +32,7 @@ public class ObjectResult {
         return isSuccess;
     }
 
-    public ObjectResult setSuccess(boolean success) {
+    public HandlerResult setSuccess(boolean success) {
         isSuccess = success;
         return this;
     }

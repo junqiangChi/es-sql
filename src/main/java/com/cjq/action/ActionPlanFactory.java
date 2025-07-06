@@ -36,6 +36,10 @@ public class ActionPlanFactory {
             return new DropActionPlan(plan);
         } else if (plan instanceof Insert) {
             return new InsertActionPlan(client, plan);
+        } else if (plan instanceof Update) {
+            return new UpdateActionPlan(plan);
+        } else if (plan instanceof UpdateByQuery) {
+            return new UpdateByQueryActionPlan(plan);
         }
         throw new EsSqlParseException("Unsupported logical plan type: " + plan.getClass().getName());
 

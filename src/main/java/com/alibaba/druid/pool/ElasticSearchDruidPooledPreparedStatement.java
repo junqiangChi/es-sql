@@ -9,7 +9,7 @@ import com.cjq.executor.Executor;
 import com.cjq.executor.ExecutorFactory;
 import com.cjq.handler.HandlerFactory;
 import com.cjq.handler.ResponseHandler;
-import com.cjq.jdbc.ObjectResult;
+import com.cjq.jdbc.HandlerResult;
 import com.cjq.plan.logical.LogicalPlan;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
@@ -26,7 +26,7 @@ public class ElasticSearchDruidPooledPreparedStatement extends DruidPooledPrepar
         connection = (ElasticSearchConnection) conn.getConnection();
     }
 
-    private ObjectResult getObjectResult(LogicalPlan plan) {
+    private HandlerResult getObjectResult(LogicalPlan plan) {
         try {
             ActionPlanFactory actionPlanFactory = ActionPlanFactory.getInstance();
             ActionPlan actionPlan = actionPlanFactory.createAction(connection.getClient(), plan);
@@ -55,8 +55,8 @@ public class ElasticSearchDruidPooledPreparedStatement extends DruidPooledPrepar
             conn.beforeExecute();
             EqlParserDriver eqlParserDriver = connection.getEqlParserDriver();
             LogicalPlan plan = eqlParserDriver.parser(getSql());
-            ObjectResult objectResult = getObjectResult(plan);
-            ResultSet rs = new ElasticSearchResultSet(this, objectResult.getHeaders(), objectResult.getRows());
+            HandlerResult handlerResult = getObjectResult(plan);
+            ResultSet rs = new ElasticSearchResultSet(this, handlerResult.getHeaders(), handlerResult.getRows());
             DruidPooledResultSet poolableResultSet = new DruidPooledResultSet(this, rs);
             addResultSetTrace(poolableResultSet);
             return poolableResultSet;

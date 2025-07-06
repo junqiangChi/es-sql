@@ -5,7 +5,7 @@ import com.cjq.action.ActionPlanFactory;
 import com.cjq.domain.EqlParserDriver;
 import com.cjq.handler.HandlerFactory;
 import com.cjq.handler.ResponseHandler;
-import com.cjq.jdbc.ObjectResult;
+import com.cjq.jdbc.HandlerResult;
 import com.cjq.plan.logical.*;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
@@ -119,18 +119,18 @@ public class EsSqlRestAction extends BaseRestHandler {
         if (request instanceof SearchRequest || request instanceof GetIndexRequest) {
             HandlerFactory handlerFactory = HandlerFactory.getInstance();
             ResponseHandler handler = handlerFactory.createHandler(plan, new Properties());
-            ObjectResult objectResult;
+            HandlerResult handlerResult;
             if (request instanceof SearchRequest) {
                 SearchResponse response = client.search((SearchRequest) request).actionGet();
-                objectResult = handler.handle(response);
+                handlerResult = handler.handle(response);
                 return channel -> channel.sendResponse(new BytesRestResponse(RestStatus.OK, XContentType.JSON.mediaType(),
-                        objectResult.toJsonString()));
+                        handlerResult.toJsonString()));
             } else {
                 GetIndexResponse getIndexResponse = client.admin().indices().getIndex((GetIndexRequest) request).actionGet();
-                objectResult = handler.handle(getIndexResponse);
+                handlerResult = handler.handle(getIndexResponse);
             }
             return channel -> channel.sendResponse(new BytesRestResponse(RestStatus.OK, XContentType.JSON.mediaType(),
-                    objectResult.toJsonString()));
+                    handlerResult.toJsonString()));
         }
         throw new IllegalArgumentException("Only support query sql");
     }

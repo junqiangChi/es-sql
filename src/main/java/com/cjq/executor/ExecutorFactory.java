@@ -28,6 +28,10 @@ public class ExecutorFactory {
             return new DropExecutor(client);
         } else if (plan instanceof Insert) {
             return new InsertExecutor(client);
+        } else if (plan instanceof Update) {
+            return new UpdateExecutor(client);
+        } else if (plan instanceof UpdateByQuery) {
+            return new UpdateByQueryExecutor(client);
         }
         throw new EsSqlParseException("Unsupported plan type: " + plan.getClass().getName());
     }

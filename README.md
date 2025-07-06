@@ -78,6 +78,11 @@ Configuration parameters that can be set when using jdbc connection
 - ✅ SELECT
     - ✅ Field Alias
     - ✅ Constant Field
+      - OPTIONAL FIELD
+          - _id : DOC_ID
+          - _index : INDEX_NAME
+          - _type : INDEX_TYPE
+          - _score : DOC_SCORE
 - ✅ WHERE
     - ✅ =
     - ✅ >
@@ -116,6 +121,9 @@ Configuration parameters that can be set when using jdbc connection
 - ✅ INSERT INTO
     - ✅ INSERT INTO [_id, F1, F2] TABLE_NAME VALUES ('V1','V2','V3'), ('V4','V5','V6')
         - If the fields contains `_id`, the corresponding value is considered to be `doc_id`
+- ✅ UPDATE
+    - ✅ UPDATE TABLE_NAME SET F1 = 1, F2 = '2' BY 'doc_id'
+    - ✅ UPDATE TABLE_NAME SET F1 = 1, F2 = '2' WHERE F3 = 3
 - ✅ DELETE
     - ✅ DELETE FROM TABLE_NAME [WHERE]
         - If `WHERE` is empty, delete the entire index data

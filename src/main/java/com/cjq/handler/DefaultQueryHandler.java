@@ -2,7 +2,7 @@ package com.cjq.handler;
 
 import com.cjq.common.Constant;
 import com.cjq.common.ElasticsearchJdbcConfig;
-import com.cjq.jdbc.ObjectResult;
+import com.cjq.jdbc.HandlerResult;
 import com.cjq.plan.logical.Field;
 import com.cjq.plan.logical.Query;
 import org.apache.commons.lang3.StringUtils;
@@ -13,6 +13,8 @@ import org.elasticsearch.search.SearchHit;
 
 import java.util.*;
 import java.util.stream.Collectors;
+
+import static com.cjq.common.Constant.*;
 
 public class DefaultQueryHandler implements ResponseHandler {
     protected final Query query;
@@ -29,7 +31,7 @@ public class DefaultQueryHandler implements ResponseHandler {
     }
 
     @Override
-    public ObjectResult handle(ActionResponse response) {
+    public HandlerResult handle(ActionResponse response) {
         SearchResponse searchResponse = (SearchResponse) response;
         SearchHit[] hits = searchResponse.getHits().getHits();
         List<Field> fields = query.getSelect().getFields();
@@ -50,14 +52,22 @@ public class DefaultQueryHandler implements ResponseHandler {
         List<List<Object>> rows = createLinesFromDocs(flat, docsAsMap, header, hitFieldNames);
         header = header.stream().map(f -> StringUtils.isNotBlank(fieldNameMap.get(f)) ? fieldNameMap.get(f) : f).collect(Collectors.toList());
         setConstantField(constantFields, header, rows);
-        return new ObjectResult(header, rows);
+        return new HandlerResult(header, rows);
     }
 
     private void setDocInclude() {
-        this.isIncludeIndex = Boolean.parseBoolean(properties.getProperty(ElasticsearchJdbcConfig.INCLUDE_INDEX.getName(), ElasticsearchJdbcConfig.INCLUDE_INDEX.getDefaultValue()));
-        this.isIncludeDocID = Boolean.parseBoolean(properties.getProperty(ElasticsearchJdbcConfig.INCLUDE_DOC_ID.getName(), ElasticsearchJdbcConfig.INCLUDE_DOC_ID.getDefaultValue()));
-        this.isIncludeType = Boolean.parseBoolean(properties.getProperty(ElasticsearchJdbcConfig.INCLUDE_TYPE.getName(), ElasticsearchJdbcConfig.INCLUDE_TYPE.getDefaultValue()));
-        this.isIncludeScore = Boolean.parseBoolean(properties.getProperty(ElasticsearchJdbcConfig.INCLUDE_SCORE.getName(), ElasticsearchJdbcConfig.INCLUDE_SCORE.getDefaultValue()));
+        this.isIncludeIndex = Boolean.parseBoolean(properties.getProperty(ElasticsearchJdbcConfig.INCLUDE_INDEX.getName(),
+                ElasticsearchJdbcConfig.INCLUDE_INDEX.getDefaultValue()))
+                || query.getSelect().getFields().stream().map(Field::getFieldName).collect(Collectors.toList()).contains(_INDEX);
+        this.isIncludeDocID = Boolean.parseBoolean(properties.getProperty(ElasticsearchJdbcConfig.INCLUDE_DOC_ID.getName(),
+                ElasticsearchJdbcConfig.INCLUDE_DOC_ID.getDefaultValue()))
+                || query.getSelect().getFields().stream().map(Field::getFieldName).collect(Collectors.toList()).contains(_ID);
+        this.isIncludeType = Boolean.parseBoolean(properties.getProperty(ElasticsearchJdbcConfig.INCLUDE_TYPE.getName(),
+                ElasticsearchJdbcConfig.INCLUDE_TYPE.getDefaultValue()))
+                || query.getSelect().getFields().stream().map(Field::getFieldName).collect(Collectors.toList()).contains(_TYPE);
+        this.isIncludeScore = Boolean.parseBoolean(properties.getProperty(ElasticsearchJdbcConfig.INCLUDE_SCORE.getName(),
+                ElasticsearchJdbcConfig.INCLUDE_SCORE.getDefaultValue()))
+                || query.getSelect().getFields().stream().map(Field::getFieldName).collect(Collectors.toList()).contains(_SCORE);
     }
 
     protected void setConstantField(List<Field> constantFields, List<String> headers, List<List<Object>> values) {
@@ -119,7 +129,7 @@ public class DefaultQueryHandler implements ResponseHandler {
                 doc.put(Constant._TYPE, hit.getType());
             }
             if (isIncludeDocID) {
-                doc.put(Constant._ID, hit.getId());
+                doc.put(_ID, hit.getId());
             }
             if (isIncludeIndex) {
                 if (StringUtils.isNotBlank(indexAlias)) {

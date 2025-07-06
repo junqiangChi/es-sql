@@ -73,6 +73,11 @@ http://localhost:9200/es_sql_plugin
 - ✅ SELECT
     - ✅ 字段别名
     - ✅ 常量字段
+        - 可选字段名
+            - _id : 文档ID
+            - _index : 索引名
+            - _type : 索引类型
+            - _score : 文档分数
 - ✅ WHERE
     - ✅ =
     - ✅ >
@@ -111,6 +116,9 @@ http://localhost:9200/es_sql_plugin
 - ✅ INSERT INTO
     - ✅ INSERT INTO [_id, F1, F2] TABLE_NAME VALUES ('V1','V2','V3'), ('V4','V5','V6')
         - 如果字段名中包含`_id`,则认为对应值为`文档ID`
+- ✅ UPDATE
+    - ✅ UPDATE TABLE_NAME SET F1 = 1, F2 = '2' BY 'doc_id'
+    - ✅ UPDATE TABLE_NAME SET F1 = 1, F2 = '2' WHERE F3 = 3
 - ✅ DELETE
     - ✅ DELETE FROM TABLE_NAME [WHERE]
         - 如果`WHERE`是空, 则会删除整个索引的数据
