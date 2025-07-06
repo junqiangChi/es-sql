@@ -73,11 +73,11 @@ http://localhost:9200/es_sql_plugin
 - ✅ SELECT
     - ✅ 字段别名
     - ✅ 常量字段
-        - 可选字段名
-            - _id : 文档ID
-            - _index : 索引名
-            - _type : 索引类型
-            - _score : 文档分数
+    - ✅ 可选字段名
+        - _id : 文档ID
+        - _index : 索引名
+        - _type : 索引类型
+        - _score : 文档分数
 - ✅ WHERE
     - ✅ =
     - ✅ >

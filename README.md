@@ -76,13 +76,13 @@ Configuration parameters that can be set when using jdbc connection
 ## SQL Supported Features
 
 - ✅ SELECT
-    - ✅ Field Alias
-    - ✅ Constant Field
-      - OPTIONAL FIELD
-          - _id : DOC_ID
-          - _index : INDEX_NAME
-          - _type : INDEX_TYPE
-          - _score : DOC_SCORE
+    - ✅ FiELD ALIAS
+    - ✅ CONSTANT FIELD
+    - ✅ OPTIONAL FIELD
+        - _id : DOC_ID
+        - _index : INDEX_NAME
+        - _type : INDEX_TYPE
+        - _score : DOC_SCORE
 - ✅ WHERE
     - ✅ =
     - ✅ >
