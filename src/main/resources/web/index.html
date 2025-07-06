@@ -211,7 +211,7 @@
             <div class="relative">
           <textarea id="sqlQuery"
                     class="w-full h-32 p-4 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 font-mono"
-                    placeholder="Enter SQL query...">select * from my_index</textarea>
+                    placeholder="Input SQL ..."></textarea>
                 <div class="absolute right-3 bottom-3 text-xs text-gray-400">
                     <span id="charCount">20</span> <span data-lang="characters">characters</span>
                 </div>
@@ -445,6 +445,7 @@
         'en': {
             'app-title': 'Elasticsearch SQL Tool',
             'query-area': 'SQL Area',
+            'input-sql': 'Input SQL ...',
             'clear': 'Clear',
             'characters': 'characters',
             'execute': 'Execute SQL',
@@ -504,6 +505,7 @@
         'zh': {
             'app-title': 'Elasticsearch SQL 工具',
             'query-area': 'SQL区域',
+            'input-sql': '输入 SQL ...',
             'clear': '清空',
             'characters': '字符',
             'execute': '执行 SQL',
@@ -727,6 +729,8 @@
 
         // 更新搜索框占位符
         document.getElementById('searchInput').placeholder = translations[lang]['search-placeholder'];
+        // 更新输入框占位符
+        document.getElementById("sqlQuery").placeholder = translations[lang]['input-sql']
 
         // 更新下载菜单
         document.querySelectorAll('#downloadMenu a').forEach(link => {
