@@ -9,6 +9,7 @@
     <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.19.3/package/dist/xlsx.full.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <!-- Tailwind 配置 -->
@@ -140,6 +141,14 @@
             background: #f1f1f1;
             border-radius: 3px;
         }
+
+        .result-table thead th {
+            @apply border-r border-gray-200; /* 表头列分隔线 */
+        }
+
+        .result-table tbody td {
+            @apply border-r border-gray-200; /* 数据列分隔线 */
+        }
     </style>
 </head>
 
@@ -209,9 +218,9 @@
 
         <div class="mb-4">
             <div class="relative">
-          <textarea id="sqlQuery"
-                    class="w-full h-32 p-4 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 font-mono"
-                    placeholder="Input SQL ..."></textarea>
+                <textarea id="sqlQuery"
+                          class="w-full h-32 p-4 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 font-mono"
+                          placeholder="Input SQL ..."></textarea>
                 <div class="absolute right-3 bottom-3 text-xs text-gray-400">
                     <span id="charCount">20</span> <span data-lang="characters">characters</span>
                 </div>
@@ -658,7 +667,7 @@
 
             // 格式化时间
             const date = new Date(historyItem.timestamp);
-            const timeString = date.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+            const timeString = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
             historyElement.innerHTML = `
             <div class="flex justify-between items-start">
@@ -905,7 +914,7 @@
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({"sql": sql})
+                    body: JSON.stringify({ "sql": sql })
                 });
 
                 // 处理不同类型的响应
@@ -1394,10 +1403,10 @@
                 default:
                     content = getTableCSV(resultTable);
                     contentType = 'text/csv;charset=utf-8;';
-                    fileName = `es_query_result_${new Date().toISOString().slice(0, 10)}.csv`;
+                    fileName = `${translations[currentLang]['es-query-result']}-${Math.floor(Date.now() / 1000)}.csv`;
             }
 
-            const blob = new Blob([content], {type: contentType});
+            const blob = new Blob([content], { type: contentType });
             const link = document.createElement('a');
             const url = URL.createObjectURL(blob);
 
@@ -1437,7 +1446,7 @@
 
         const ws = XLSX.utils.aoa_to_sheet(wsData);
         XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
-        return XLSX.write(wb, {bookType: 'xlsx', type: 'array'});
+        return XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
     }
 
     // 获取表格 JSON 内容
