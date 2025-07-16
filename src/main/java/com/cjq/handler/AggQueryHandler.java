@@ -49,13 +49,13 @@ public class AggQueryHandler extends DefaultQueryHandler {
         for (Terms.Bucket bucket : terms.getBuckets()) {
             Field field = groupByFields.get(level);
             setValueToMap(groupValues, field.getFieldName(), bucket.getKeyAsString());
-            // 还有下一级
+            // There is next level
             if (level < groupByFields.size() - 1) {
                 String nextAggName = GROUP_BY_PREFIX + groupByFields.get(level + 1).getFieldName();
                 Terms nextTerms = bucket.getAggregations().get(nextAggName);
                 handlerTermsBuckets(nextTerms, groupByFields, level + 1, query, groupValues);
             } else {
-                // 最后一级分组
+                // Last level grouping
                 List<Field> funcFields = query.getSelect().getFields().stream().filter(Field::isFunction).collect(Collectors.toList());
                 for (Field funcField : funcFields) {
                     String funcFieldName = funcField.getAlias() != null ? funcField.getAlias() : funcField.getFuncName() + "(" + funcField.getFieldName() + ")";

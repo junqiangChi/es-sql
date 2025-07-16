@@ -3,32 +3,73 @@ package com.cjq.parser;
 import com.cjq.common.Constant;
 import com.cjq.common.WhereOpr;
 import com.cjq.exception.EsSqlParseException;
+import com.cjq.exception.ExceptionHandler;
+import com.cjq.exception.ErrorCode;
 import com.cjq.plan.logical.*;
 import org.antlr.v4.runtime.tree.ErrorNodeImpl;
 import org.antlr.v4.runtime.tree.ParseTree;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
+/**
+ * AST Builder for SQL parsing, converts parse tree to logical plan
+ */
 public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
+    
+    // Constants for operator symbols
+    private static final String NOT_REGEXP = "NOT REGEXP";
+    private static final String REGEXP = "REGEXP";
+    private static final String NOT_IN = "NOT IN";
+    private static final String IN = "IN";
+    private static final String NOT_LIKE = "NOT LIKE";
+    private static final String LIKE = "LIKE";
+    private static final String NOT_ILIKE = "NOT ILIKE";
+    private static final String ILIKE = "ILIKE";
+    private static final String NOT_BETWEEN = "NOT BETWEEN";
+    private static final String BETWEEN = "BETWEEN";
+    
+    // Error messages
+    private static final String ERROR_SINGLE_STATEMENT = "Single statement error: ";
+    private static final String ERROR_FIELD_NAME_INCORRECT = "Field name incorrect, cannot start with a number";
+    private static final String ERROR_ONLY_GROUP_BY_SUPPORTED = "Only support group by clause";
+    private static final String ERROR_NOT_SUPPORTED_SYNTAX = "not supported syntax: ";
+    private static final String ERROR_DUPLICATE_FIELD = "Duplicate field: ";
+    private static final String ERROR_WHERE_OR_BY_EMPTY = "WHERE or BY cannot be empty";
+    
+    // Operator mapping for predicates
+    private static final Map<String, Function<Boolean, String>> OPERATOR_MAPPING = createOperatorMapping();
+    
+    private static Map<String, Function<Boolean, String>> createOperatorMapping() {
+        Map<String, Function<Boolean, String>> mapping = new HashMap<>();
+        mapping.put("RLIKE", hasNot -> hasNot ? NOT_REGEXP : REGEXP);
+        mapping.put("IN", hasNot -> hasNot ? NOT_IN : IN);
+        mapping.put("LIKE", hasNot -> hasNot ? NOT_LIKE : LIKE);
+        mapping.put("ILIKE", hasNot -> hasNot ? NOT_ILIKE : ILIKE);
+        mapping.put("BETWEEN", hasNot -> hasNot ? NOT_BETWEEN : BETWEEN);
+        return mapping;
+    }
+
     @Override
     public LogicalPlan visitSingleStatement(SqlBaseParser.SingleStatementContext ctx) {
-        List<ParseTree> children = ctx.children;
-        for (ParseTree child : children) {
-            if (child instanceof ErrorNodeImpl) {
-                throw new EsSqlParseException("Single statement error: " + child.getText());
-            }
+        try {
+            validateParseTree(ctx.children);
+            return visit(ctx.statement());
+        } catch (Exception e) {
+            ExceptionHandler.getInstance().handleException(e);
+            throw ExceptionHandler.getInstance().createBaseException(e, ErrorCode.SQL_PARSE_ERROR);
         }
-        return visit(ctx.statement());
     }
 
     @Override
     public LogicalPlan visitQuery(SqlBaseParser.QueryContext ctx) {
         LogicalPlan query = visit(ctx.queryTerm());
-        // 参考spark源码
         LogicalPlan queryOrganization = query.optionalMap(ctx, (queryContext, executePlan) -> {
             if (queryContext.queryOrganization() != null) {
                 executePlan = visit(queryContext.queryOrganization());
@@ -44,18 +85,21 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
         return visit(ctx.querySpecification());
     }
 
-
     @Override
     public LogicalPlan visitRegularQuerySpecification(SqlBaseParser.RegularQuerySpecificationContext ctx) {
         SqlBaseParser.SelectClauseContext selectClauseContext = ctx.selectClause();
         From from = (From) visit(ctx.fromClause());
+        
         List<Field> fields = selectClauseContext
                 .namedExpressionSeq()
                 .namedExpression()
-                .stream().map(this::getField)
+                .stream()
+                .map(this::getField)
                 .collect(Collectors.toList());
+                
         SqlBaseParser.WhereClauseContext whereClauseContext = ctx.whereClause();
         Where where = whereClauseContext == null ? null : (Where) visit(whereClauseContext);
+        
         GroupBy groupBy = ctx.aggregationClause() == null ? null : (GroupBy) visit(ctx.aggregationClause());
         return new Query(new Select(fields), from, where, groupBy);
     }
@@ -73,40 +117,38 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
     }
 
     private Field getField(SqlBaseParser.NamedExpressionContext ctx) {
-        LogicalPlan visit = visit(ctx.expression().booleanExpression());
-        if (visit instanceof Value) {
-            throw new EsSqlParseException("Field name incorrect, cannot start with a number");
+        try {
+            LogicalPlan visit = visit(ctx.expression().booleanExpression());
+            if (visit instanceof Value) {
+                throw new EsSqlParseException(ERROR_FIELD_NAME_INCORRECT);
+            }
+            Field field = (Field) visit;
+            if (ctx.errorCapturingIdentifier() != null) {
+                field.setAlias(ctx.errorCapturingIdentifier().getText());
+            }
+            return field;
+        } catch (Exception e) {
+            ExceptionHandler.getInstance().handleException(e);
+            throw ExceptionHandler.getInstance().createBaseException(e, ErrorCode.INVALID_FIELD_NAME);
         }
-        Field field = (Field) visit;
-        if (ctx.errorCapturingIdentifier() != null) {
-            field.setAlias(ctx.errorCapturingIdentifier().getText());
-        }
-        return field;
     }
 
     @Override
     public LogicalPlan visitAggregationClause(SqlBaseParser.AggregationClauseContext ctx) {
         if (ctx.GROUP() != null) {
-            List<SqlBaseParser.GroupByClauseContext> groupByClauseContexts = ctx.groupByClause();
-            List<Field> groupByField = groupByClauseContexts.stream().map(f -> (Field) visit(f))
+            List<Field> groupByFields = ctx.groupByClause()
+                    .stream()
+                    .map(f -> (Field) visit(f))
                     .collect(Collectors.toList());
-            return new GroupBy(groupByField);
+            return new GroupBy(groupByFields);
         } else {
-            throw new EsSqlParseException("Only support group by clause");
+            throw new EsSqlParseException(ERROR_ONLY_GROUP_BY_SUPPORTED);
         }
     }
 
     @Override
     public LogicalPlan visitValueExpressionDefault(SqlBaseParser.ValueExpressionDefaultContext ctx) {
-        if (ctx.primaryExpression() instanceof SqlBaseParser.ConstantDefaultContext) {
-            return visit(((SqlBaseParser.ConstantDefaultContext) ctx.primaryExpression()).constant());
-        } else if (ctx.primaryExpression() instanceof SqlBaseParser.RowConstructorContext) {
-            return visit(ctx.primaryExpression());
-        } else if (ctx.primaryExpression() instanceof SqlBaseParser.ColumnReferenceContext) {
-            return visit(ctx.primaryExpression());
-        } else {
-            return visit(ctx.primaryExpression());
-        }
+        return visit(ctx.primaryExpression());
     }
 
     @Override
@@ -115,10 +157,10 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
     }
 
     /**
-     * 处理表名及别名
+     * Process table name and alias
      *
      * @param ctx the parse tree
-     * @return
+     * @return LogicalPlan
      */
     @Override
     public LogicalPlan visitTableName(SqlBaseParser.TableNameContext ctx) {
@@ -129,26 +171,13 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
 
     @Override
     public LogicalPlan visitNumericLiteral(SqlBaseParser.NumericLiteralContext ctx) {
-        if (ctx.number() instanceof SqlBaseParser.IntegerLiteralContext) {
-            return visitIntegerLiteral((SqlBaseParser.IntegerLiteralContext) ctx.number());
-        } else if (ctx.number() instanceof SqlBaseParser.DecimalLiteralContext) {
-            return visitDecimalLiteral((SqlBaseParser.DecimalLiteralContext) ctx.number());
-        } else if (ctx.number() instanceof SqlBaseParser.FloatLiteralContext) {
-            return visitFloatLiteral((SqlBaseParser.FloatLiteralContext) ctx.number());
-        } else if (ctx.number() instanceof SqlBaseParser.ExponentLiteralContext) {
-            return visitExponentLiteral((SqlBaseParser.ExponentLiteralContext) ctx.number());
-        } else {
-            return visitDoubleLiteral((SqlBaseParser.DoubleLiteralContext) ctx.number());
-        }
+        return visit(ctx.number());
     }
 
     @Override
     public LogicalPlan visitIntegerLiteral(SqlBaseParser.IntegerLiteralContext ctx) {
-        if (ctx.getText().contains(".")) {
-            return new Value(Double.parseDouble(ctx.getText()));
-        } else {
-            return new Value(Integer.parseInt(ctx.getText()));
-        }
+        String text = ctx.getText();
+        return text.contains(".") ? new Value(Double.parseDouble(text)) : new Value(Integer.parseInt(text));
     }
 
     @Override
@@ -173,12 +202,19 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
 
     @Override
     public LogicalPlan visitComparison(SqlBaseParser.ComparisonContext ctx) {
-        List<SqlBaseParser.ValueExpressionDefaultContext> valueExpressionDefaultContexts = ctx.valueExpression()
-                .stream().map(f -> (SqlBaseParser.ValueExpressionDefaultContext) f).collect(Collectors.toList());
-        SqlBaseParser.ValueExpressionDefaultContext left = valueExpressionDefaultContexts.get(0);
-        SqlBaseParser.ValueExpressionDefaultContext right = valueExpressionDefaultContexts.get(1);
-        Condition condition = new Condition(left.primaryExpression().getText(), ctx.comparisonOperator().getText(),
-                (Value) visit(right.primaryExpression()));
+        List<SqlBaseParser.ValueExpressionDefaultContext> expressions = ctx.valueExpression()
+                .stream()
+                .map(f -> (SqlBaseParser.ValueExpressionDefaultContext) f)
+                .collect(Collectors.toList());
+                
+        SqlBaseParser.ValueExpressionDefaultContext left = expressions.get(0);
+        SqlBaseParser.ValueExpressionDefaultContext right = expressions.get(1);
+        
+        Condition condition = new Condition(
+                left.primaryExpression().getText(), 
+                ctx.comparisonOperator().getText(),
+                (Value) visit(right.primaryExpression())
+        );
         return new Where(condition, null, null);
     }
 
@@ -187,61 +223,84 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
         if (ctx.valueExpression() instanceof SqlBaseParser.ComparisonContext) {
             return visit(ctx.valueExpression());
         }
+        
         if (ctx.valueExpression() instanceof SqlBaseParser.ValueExpressionDefaultContext && ctx.predicate() != null) {
-            SqlBaseParser.PredicateContext predicate = ctx.predicate();
-            String operatorSymbol = getOperatorSymbol(predicate);
-            Value value = null;
-            List<SqlBaseParser.ExpressionContext> expression = predicate.expression();
-            if (expression != null && !expression.isEmpty()) {
-                for (SqlBaseParser.ExpressionContext expressionContext : expression) {
-                    if (value == null) {
-                        value = (Value) visit(expressionContext);
-                    } else {
-                        value.setPlan(visit(expressionContext));
-                    }
-                }
-            } else if (predicate.valueExpression() != null && predicate.valueExpression().size() > 1) {
-                for (SqlBaseParser.ValueExpressionContext valueExpressionContext : predicate.valueExpression()) {
-                    if (value == null) {
-                        value = (Value) visit(valueExpressionContext);
-                    } else {
-                        value.setPlan(visit(valueExpressionContext));
-                    }
-                }
-            } else {
-                value = (Value) visit(predicate.valueExpression(0));
-            }
-            Condition condition = new Condition(ctx.valueExpression().getText(), operatorSymbol, value);
-            return new Where(condition, null, null);
+            return buildPredicatedWhere(ctx);
         }
+        
         return visit(ctx.valueExpression());
     }
 
+    private Where buildPredicatedWhere(SqlBaseParser.PredicatedContext ctx) {
+        try {
+            SqlBaseParser.PredicateContext predicate = ctx.predicate();
+            String operatorSymbol = getOperatorSymbol(predicate);
+            Value value = buildPredicateValue(predicate);
+            Condition condition = new Condition(ctx.valueExpression().getText(), operatorSymbol, value);
+            return new Where(condition, null, null);
+        } catch (Exception e) {
+            ExceptionHandler.getInstance().handleException(e);
+            throw ExceptionHandler.getInstance().createBaseException(e, ErrorCode.SQL_PARSE_ERROR);
+        }
+    }
+
+    private Value buildPredicateValue(SqlBaseParser.PredicateContext predicate) {
+        List<SqlBaseParser.ExpressionContext> expressions = predicate.expression();
+        
+        if (expressions != null && !expressions.isEmpty()) {
+            return buildValueFromExpressions(expressions);
+        } else if (predicate.valueExpression() != null && predicate.valueExpression().size() > 1) {
+            return buildValueFromValueExpressions(predicate.valueExpression());
+        } else {
+            return (Value) visit(predicate.valueExpression(0));
+        }
+    }
+
+    private Value buildValueFromExpressions(List<SqlBaseParser.ExpressionContext> expressions) {
+        Value value = null;
+        for (SqlBaseParser.ExpressionContext expressionContext : expressions) {
+            if (value == null) {
+                value = (Value) visit(expressionContext);
+            } else {
+                value.setPlan(visit(expressionContext));
+            }
+        }
+        return value;
+    }
+
+    private Value buildValueFromValueExpressions(List<SqlBaseParser.ValueExpressionContext> valueExpressions) {
+        Value value = null;
+        for (SqlBaseParser.ValueExpressionContext valueExpressionContext : valueExpressions) {
+            if (value == null) {
+                value = (Value) visit(valueExpressionContext);
+            } else {
+                value.setPlan(visit(valueExpressionContext));
+            }
+        }
+        return value;
+    }
 
     @Override
     public LogicalPlan visitLogicalBinary(SqlBaseParser.LogicalBinaryContext ctx) {
-        List<SqlBaseParser.BooleanExpressionContext> booleanExpressionContexts = ctx.booleanExpression();
-        Where where = null;
-        SqlBaseParser.BooleanExpressionContext left = booleanExpressionContexts.get(0);
-        SqlBaseParser.BooleanExpressionContext right = booleanExpressionContexts.get(1);
+        List<SqlBaseParser.BooleanExpressionContext> booleanExpressions = ctx.booleanExpression();
+        SqlBaseParser.BooleanExpressionContext left = booleanExpressions.get(0);
+        SqlBaseParser.BooleanExpressionContext right = booleanExpressions.get(1);
+        
         WhereOpr whereOpr = WhereOpr.valueOf(ctx.operator.getText().toUpperCase());
-        if (right instanceof SqlBaseParser.PredicatedContext) {
-            where = (Where) visit(right);
-            where.setOpr(whereOpr);
-        }
-        if (left instanceof SqlBaseParser.LogicalBinaryContext) {
-            where.setNextWhere((Where) visit(left));
-        } else {
-            where.setNextWhere((Where) visit(left));
-        }
+        
+        Where where = (Where) visit(right);
+        where.setOpr(whereOpr);
+        where.setNextWhere((Where) visit(left));
+        
         return where;
     }
 
     /**
-     * 当where的后面为常量时，会返回单引号，因此在这个方法中做处理,去除单引号
+     * When the value after where is a constant, it will return single quotes, 
+     * so process it in this method to remove the quotes
      *
      * @param ctx the parse tree with {@link SqlBaseParser.StringLiteralContext}
-     * @return {@link LogicalPlan}
+     * @return LogicalPlan
      */
     @Override
     public LogicalPlan visitStringLiteral(SqlBaseParser.StringLiteralContext ctx) {
@@ -251,22 +310,26 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
 
     @Override
     public LogicalPlan visitSortItem(SqlBaseParser.SortItemContext ctx) {
-        return new Sort(ctx.expression().getText(), ctx.getChildCount() > 1 ? Sort.OrderType.valueOf(ctx.getChild(1).getText().toUpperCase()) : Sort.OrderType.ASC);
+        String field = ctx.expression().getText();
+        Sort.OrderType orderType = ctx.getChildCount() > 1 ? 
+                Sort.OrderType.valueOf(ctx.getChild(1).getText().toUpperCase()) : 
+                Sort.OrderType.ASC;
+        return new Sort(field, orderType);
     }
 
     @Override
     public LogicalPlan visitQueryOrganization(SqlBaseParser.QueryOrganizationContext ctx) {
         OrderBy orderBy = new OrderBy();
-        List<Sort> sorts = ctx.sortItem().stream().map(o -> (Sort) visit(o)).collect(Collectors.toList());
+        List<Sort> sorts = ctx.sortItem()
+                .stream()
+                .map(this::visit)
+                .map(sort -> (Sort) sort)
+                .collect(Collectors.toList());
         orderBy.setSorts(sorts);
+        
         LogicalPlan limitLogical = orderBy.optionalMap(ctx, (queryContext, limit) -> {
             if (queryContext.LIMIT() != null) {
-                if (queryContext.limitPagination() != null) {
-                    limit = new Limit(Integer.parseInt(queryContext.limitPagination().INTEGER_VALUE().get(0).getText()),
-                            Integer.parseInt(queryContext.limitPagination().INTEGER_VALUE().get(1).getText()));
-                } else {
-                    limit = new Limit(0, Integer.parseInt(queryContext.limit.getText()));
-                }
+                limit = buildLimit(queryContext);
             }
             return limit;
         });
@@ -274,59 +337,15 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
         return orderBy;
     }
 
-    /**
-     * 判断这个字段是否为常量
-     *
-     * @param ctx {@link SqlBaseParser.NamedExpressionContext}
-     * @return {@link LogicalPlan}
-     */
-    private boolean isConstant(SqlBaseParser.NamedExpressionContext ctx) {
-        SqlBaseParser.BooleanExpressionContext booleanExpression = ctx.expression().booleanExpression();
-        if (booleanExpression instanceof SqlBaseParser.PredicatedContext) {
-            SqlBaseParser.PredicatedContext predicatedContext = (SqlBaseParser.PredicatedContext) booleanExpression;
-            SqlBaseParser.ValueExpressionContext valueExpression = predicatedContext.valueExpression();
-            if (valueExpression instanceof SqlBaseParser.ValueExpressionDefaultContext) {
-                SqlBaseParser.ValueExpressionDefaultContext valueExpressionDefaultContext = (SqlBaseParser.ValueExpressionDefaultContext) valueExpression;
-                SqlBaseParser.PrimaryExpressionContext primaryExpression = valueExpressionDefaultContext.primaryExpression();
-                return primaryExpression instanceof SqlBaseParser.ConstantDefaultContext;
-            }
-        }
-        return false;
-    }
-
-    private String getOperatorSymbol(SqlBaseParser.PredicateContext predicate) {
-        if (predicate.RLIKE() != null) {
-            if (predicate.NOT() != null) {
-                return "NOT REGEXP";
-            } else {
-                return "REGEXP";
-            }
-        } else if (predicate.IN() != null) {
-            if (predicate.NOT() != null) {
-                return "NOT IN";
-            } else {
-                return "IN";
-            }
-        } else if (predicate.LIKE() != null) {
-            if (predicate.NOT() != null) {
-                return "NOT LIKE";
-            } else {
-                return "LIKE";
-            }
-        } else if (predicate.ILIKE() != null) {
-            if (predicate.NOT() != null) {
-                return "NOT ILIKE";
-            } else {
-                return "ILIKE";
-            }
-        } else if (predicate.BETWEEN() != null && predicate.AND() != null) {
-            if (predicate.NOT() != null) {
-                return "NOT BETWEEN";
-            } else {
-                return "BETWEEN";
-            }
+    private Limit buildLimit(SqlBaseParser.QueryOrganizationContext ctx) {
+        if (ctx.limitPagination() != null) {
+            List<String> values = ctx.limitPagination().INTEGER_VALUE()
+                    .stream()
+                    .map(Object::toString)
+                    .collect(Collectors.toList());
+            return new Limit(Integer.parseInt(values.get(0)), Integer.parseInt(values.get(1)));
         } else {
-            throw new EsSqlParseException("not supported syntax：" + predicate.getText());
+            return new Limit(0, Integer.parseInt(ctx.limit.getText()));
         }
     }
 
@@ -373,20 +392,26 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
     public LogicalPlan visitInsertIntoTable(SqlBaseParser.InsertIntoTableContext ctx) {
         Insert insert = new Insert();
         From from = new From(ctx.identifierReference().getText());
+        
         if (ctx.identifierList() != null) {
-            List<SqlBaseParser.ErrorCapturingIdentifierContext> errorCapturingIdentifierContexts = ctx.identifierList().identifierSeq().errorCapturingIdentifier();
-            List<Field> fields = new ArrayList<>();
-            for (int i = 0; i < errorCapturingIdentifierContexts.size(); i++) {
-                String field = errorCapturingIdentifierContexts.get(i).identifier().getText();
-                if (field.equals(Constant._ID)) {
-                    insert.setIdPosition(i);
-                }
-                fields.add(new Field(field));
-            }
+            List<Field> fields = buildInsertFields(ctx.identifierList().identifierSeq().errorCapturingIdentifier(), insert);
             insert.setFields(fields);
         }
+        
         insert.setFrom(from);
         return insert;
+    }
+
+    private List<Field> buildInsertFields(List<SqlBaseParser.ErrorCapturingIdentifierContext> identifiers, Insert insert) {
+        List<Field> fields = new ArrayList<>();
+        for (int i = 0; i < identifiers.size(); i++) {
+            String field = identifiers.get(i).identifier().getText();
+            if (field.equals(Constant._ID)) {
+                insert.setIdPosition(i);
+            }
+            fields.add(new Field(field));
+        }
+        return fields;
     }
 
     @Override
@@ -397,22 +422,21 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
     @Override
     public LogicalPlan visitInlineTable(SqlBaseParser.InlineTableContext ctx) {
         Insert insert = new Insert();
-        ctx.expression()
-                .forEach(e -> {
-                    Insert innerInsert = (Insert) visit(e);
-                    insert.setValues(innerInsert.getValues());
-                });
+        ctx.expression().forEach(e -> {
+            Insert innerInsert = (Insert) visit(e);
+            insert.setValues(innerInsert.getValues());
+        });
         return insert;
     }
 
     @Override
     public LogicalPlan visitRowConstructor(SqlBaseParser.RowConstructorContext ctx) {
-        List<Value> row = ctx.namedExpression().stream()
-                .map(v -> {
-                    LogicalPlan visit = visit(v);
-                    return (Value) visit;
-                })
+        List<Value> row = ctx.namedExpression()
+                .stream()
+                .map(this::visit)
+                .map(value -> (Value) value)
                 .collect(Collectors.toList());
+        
         Insert insert = new Insert();
         insert.setRow(row);
         return insert;
@@ -420,8 +444,7 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
 
     @Override
     public LogicalPlan visitNamedExpression(SqlBaseParser.NamedExpressionContext ctx) {
-        SqlBaseParser.BooleanExpressionContext tree = ctx.expression().booleanExpression();
-        return visit(tree);
+        return visit(ctx.expression().booleanExpression());
     }
 
     @Override
@@ -433,26 +456,82 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
     public LogicalPlan visitUpdateTable(SqlBaseParser.UpdateTableContext ctx) {
         String index = ctx.identifierReference().multipartIdentifier().errorCapturingIdentifier.identifier().getText();
         From from = new From(index);
+        
         List<SqlBaseParser.AssignmentContext> assignments = ctx.setClause().assignmentList().assignment();
-        ArrayList<Field> fields = new ArrayList<>();
-        ArrayList<Value> values = new ArrayList<>();
+        List<Field> fields = new ArrayList<>();
+        List<Value> values = new ArrayList<>();
         HashSet<String> fieldSet = new HashSet<>();
-        assignments.forEach(ass -> {
-            String field = ass.multipartIdentifier().errorCapturingIdentifier.identifier().getText();
-            fieldSet.add(field);
-            fields.add(new Field(field));
-            if (fields.size() != fieldSet.size()) {
-                throw new EsSqlParseException("Duplicate field: " + field + " with Set");
+        
+        assignments.forEach(assignment -> {
+            String field = assignment.multipartIdentifier().errorCapturingIdentifier.identifier().getText();
+            if (!fieldSet.add(field)) {
+                throw new EsSqlParseException(ERROR_DUPLICATE_FIELD + field + " with Set");
             }
-            values.add((Value) visit(ass.expression().booleanExpression()));
+            fields.add(new Field(field));
+            values.add((Value) visit(assignment.expression().booleanExpression()));
         });
+        
         if (ctx.BY() != null) {
             String docId = ((Value) visit(ctx.valueExpression())).getText().toString();
             return new Update(from, fields, values, docId);
         } else if (ctx.whereClause() != null) {
             return new UpdateByQuery(from, fields, values, (Where) visit(ctx.whereClause()));
         } else {
-            throw new EsSqlParseException("WHERE or BY cannot be empty");
+            throw new EsSqlParseException(ERROR_WHERE_OR_BY_EMPTY);
+        }
+    }
+
+    /**
+     * Validate parse tree for error nodes
+     */
+    private void validateParseTree(List<ParseTree> children) {
+        try {
+            for (ParseTree child : children) {
+                if (child instanceof ErrorNodeImpl) {
+                    throw new EsSqlParseException(ERROR_SINGLE_STATEMENT + child.getText());
+                }
+            }
+        } catch (Exception e) {
+            ExceptionHandler.getInstance().handleException(e);
+            throw ExceptionHandler.getInstance().createBaseException(e, ErrorCode.SQL_PARSE_ERROR);
+        }
+    }
+
+    /**
+     * Get operator symbol for predicate
+     */
+    private String getOperatorSymbol(SqlBaseParser.PredicateContext predicate) {
+        try {
+            for (Map.Entry<String, Function<Boolean, String>> entry : OPERATOR_MAPPING.entrySet()) {
+                String operator = entry.getKey();
+                Function<Boolean, String> symbolFunction = entry.getValue();
+                
+                if (isPredicateOperator(predicate, operator)) {
+                    boolean hasNot = predicate.NOT() != null;
+                    return symbolFunction.apply(hasNot);
+                }
+            }
+            throw new EsSqlParseException(ERROR_NOT_SUPPORTED_SYNTAX + predicate.getText());
+        } catch (Exception e) {
+            ExceptionHandler.getInstance().handleException(e);
+            throw ExceptionHandler.getInstance().createBaseException(e, ErrorCode.SQL_SYNTAX_ERROR);
+        }
+    }
+
+    private boolean isPredicateOperator(SqlBaseParser.PredicateContext predicate, String operator) {
+        switch (operator) {
+            case "RLIKE":
+                return predicate.RLIKE() != null;
+            case "IN":
+                return predicate.IN() != null;
+            case "LIKE":
+                return predicate.LIKE() != null;
+            case "ILIKE":
+                return predicate.ILIKE() != null;
+            case "BETWEEN":
+                return predicate.BETWEEN() != null && predicate.AND() != null;
+            default:
+                return false;
         }
     }
 }

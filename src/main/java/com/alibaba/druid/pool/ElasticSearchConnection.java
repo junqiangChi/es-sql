@@ -16,7 +16,7 @@ public class ElasticSearchConnection implements Connection {
     private final Client client;
 
     private final EqlParserDriver eqlParserDriver;
-    // 关闭标识
+    // Close flag
     private boolean closeStatus = true;
     private Properties properties;
 

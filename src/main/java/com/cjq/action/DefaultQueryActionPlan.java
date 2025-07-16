@@ -1,5 +1,6 @@
 package com.cjq.action;
 
+import com.cjq.common.Constant;
 import com.cjq.common.WhereOpr;
 import com.cjq.exception.EsSqlParseException;
 import com.cjq.plan.logical.*;
@@ -18,9 +19,10 @@ import java.util.HashSet;
 import java.util.List;
 
 public class DefaultQueryActionPlan implements ActionPlan {
-    protected Query query;
-    protected SearchRequest searchRequest = new SearchRequest();
-    protected SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+    
+    protected final Query query;
+    protected final SearchRequest searchRequest = new SearchRequest();
+    protected final SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
     private Limit limit;
 
     public DefaultQueryActionPlan(LogicalPlan logicalPlan) {
@@ -29,22 +31,17 @@ public class DefaultQueryActionPlan implements ActionPlan {
     }
 
     public DefaultQueryActionPlan() {
+        this.query = null;
     }
 
     private void checkQuerySql() {
         List<Field> fields = query.getSelect().getFields();
         HashSet<String> fieldSet = new HashSet<>();
+        
         for (Field field : fields) {
-            if (field.getAlias() != null) {
-                if (fieldSet.contains(field.getAlias())) {
-                    throw new EsSqlParseException("Duplicate field: " + field);
-                }
-                fieldSet.add(field.getAlias());
-            } else {
-                if (fieldSet.contains(field.getFieldName())) {
-                    throw new EsSqlParseException("Duplicate field: " + field);
-                }
-                fieldSet.add(field.getFieldName());
+            String fieldName = field.getAlias() != null ? field.getAlias() : field.getFieldName();
+            if (!fieldSet.add(fieldName)) {
+                throw new EsSqlParseException(Constant.ERROR_DUPLICATE_FIELD + fieldName);
             }
         }
     }
@@ -54,30 +51,37 @@ public class DefaultQueryActionPlan implements ActionPlan {
         setFrom(query.getFrom());
         setSelect(query.getSelect());
         setWhere(query.getWhere());
-        LogicalPlan tmpLogicalPlan = query.getPlan();
-        while (tmpLogicalPlan != null) {
-            if (tmpLogicalPlan instanceof OrderBy) {
-                setOrderBy((OrderBy) tmpLogicalPlan);
-            }
-            if (tmpLogicalPlan instanceof Limit) {
-                limit = (Limit) tmpLogicalPlan;
-            }
-            tmpLogicalPlan = tmpLogicalPlan.getPlan();
-        }
+        processLogicalPlanChain();
         setLimit();
         searchRequest.source(searchSourceBuilder);
         return searchRequest;
     }
 
+    private void processLogicalPlanChain() {
+        LogicalPlan currentPlan = query.getPlan();
+        while (currentPlan != null) {
+            if (currentPlan instanceof OrderBy) {
+                setOrderBy((OrderBy) currentPlan);
+            } else if (currentPlan instanceof Limit) {
+                limit = (Limit) currentPlan;
+            }
+            currentPlan = currentPlan.getPlan();
+        }
+    }
+
     protected void setSelect(Select select) {
-        if (select.getFields().size() == 1 && "*".equals(select.getFields().get(0).getFieldName())) {
+        List<Field> fields = select.getFields();
+        
+        if (fields.size() == 1 && Constant.WILDCARD_ALL.equals(fields.get(0).getFieldName())) {
             searchSourceBuilder.fetchSource(new FetchSourceContext(true, null, null));
             return;
         }
-        String[] fieldsToFetch = select.getFields()
-                .stream()
-                .filter(f -> !f.isConstant())
-                .map(Field::getFieldName).toArray(String[]::new);
+        
+        String[] fieldsToFetch = fields.stream()
+                .filter(field -> !field.isConstant())
+                .map(Field::getFieldName)
+                .toArray(String[]::new);
+                
         if (fieldsToFetch.length > 0) {
             searchSourceBuilder.fetchSource(new FetchSourceContext(true, fieldsToFetch, null));
         }
@@ -88,13 +92,13 @@ public class DefaultQueryActionPlan implements ActionPlan {
     }
 
     protected void setGroupBy(GroupBy groupBy) {
-        // Nothing to do
+        // Nothing to do for default query
     }
 
     protected void setLimit() {
         if (limit == null) {
-            searchSourceBuilder.from(0);
-            searchSourceBuilder.size(1000);
+            searchSourceBuilder.from(Constant.DEFAULT_FROM);
+            searchSourceBuilder.size(Constant.DEFAULT_SIZE);
         }
     }
 
@@ -102,90 +106,99 @@ public class DefaultQueryActionPlan implements ActionPlan {
         if (where == null) {
             return;
         }
+        
         BoolQueryBuilder boolQueryBuilder = QueryBuilders.boolQuery();
-        Where tmpWhere = where;
+        Where currentWhere = where;
+        
         do {
-            Condition condition = tmpWhere.getCondition();
-            QueryBuilder subBoolQueryBuilder = buildCondition(condition);
-            if (tmpWhere.getOpr() == WhereOpr.OR) {
-                boolQueryBuilder.should(subBoolQueryBuilder);
+            Condition condition = currentWhere.getCondition();
+            QueryBuilder subQueryBuilder = buildCondition(condition);
+            
+            if (currentWhere.getOpr() == WhereOpr.OR) {
+                boolQueryBuilder.should(subQueryBuilder);
             } else {
-                boolQueryBuilder.must(subBoolQueryBuilder);
+                boolQueryBuilder.must(subQueryBuilder);
             }
-            tmpWhere = where.getNextWhere();
-        } while (tmpWhere != null);
+            
+            currentWhere = currentWhere.getNextWhere();
+        } while (currentWhere != null);
+        
         searchSourceBuilder.query(boolQueryBuilder);
     }
 
     protected void setOrderBy(OrderBy orderBy) {
-        for (Sort sort : orderBy.getSorts()) {
-            if (sort != null) {
-                searchSourceBuilder.sort(sort.field, SortOrder.valueOf(sort.getOrderType().toString()));
-            }
+        orderBy.getSorts().stream()
+                .filter(sort -> sort != null)
+                .forEach(sort -> searchSourceBuilder.sort(sort.field, 
+                        SortOrder.valueOf(sort.getOrderType().toString())));
+    }
+
+    /**
+     * Build condition query
+     */
+    public QueryBuilder buildCondition(Condition condition) {
+        String field = condition.getField();
+        Object value = condition.getValue().getText();
+
+        switch (condition.getOpera()) {
+            case GT:
+                return QueryBuilders.rangeQuery(field).gt(value);
+            case LT:
+                return QueryBuilders.rangeQuery(field).lt(value);
+            case GTE:
+                return QueryBuilders.rangeQuery(field).gte(value);
+            case LTE:
+                return QueryBuilders.rangeQuery(field).lte(value);
+            case EQ:
+            case MATCH_PHRASE:
+                return QueryBuilders.matchPhraseQuery(field, value);
+            case MATCH:
+                return QueryBuilders.matchQuery(field, value).operator(Operator.AND);
+            case TERM:
+                return QueryBuilders.termQuery(field, value);
+            case NIN:
+                return QueryBuilders.boolQuery().mustNot(QueryBuilders.termsQuery(field, getValues(condition)));
+            case IN:
+                return QueryBuilders.termsQuery(field, getValues(condition));
+            case NBETWEEN:
+                return QueryBuilders.boolQuery()
+                        .mustNot(QueryBuilders.rangeQuery(field)
+                                .gte(value)
+                                .lte(((Value) condition.getValue().getPlan()).getText()));
+            case BETWEEN:
+                return QueryBuilders.rangeQuery(field)
+                        .gte(value)
+                        .lte(((Value) condition.getValue().getPlan()).getText());
+            case NLIKE:
+                return QueryBuilders.boolQuery().mustNot(QueryBuilders.wildcardQuery(field,
+                        value.toString().replace(Constant.PERCENT_SYMBOL, Constant.WILDCARD_SYMBOL)));
+            case LIKE:
+                return QueryBuilders.wildcardQuery(field,
+                        value.toString().replace(Constant.PERCENT_SYMBOL, Constant.WILDCARD_SYMBOL));
+            case NREGEXP:
+                return QueryBuilders.boolQuery().mustNot(QueryBuilders.regexpQuery(field, value.toString()));
+            case REGEXP:
+                return QueryBuilders.regexpQuery(field, value.toString());
+            case IS:
+                return QueryBuilders.boolQuery().mustNot(QueryBuilders.existsQuery(field));
+            default:
+                throw new EsSqlParseException(Constant.ERROR_UNKNOWN_WHERE_TYPE + condition.getOpera());
         }
     }
 
     /**
-     * @param condition
-     * @return
+     * Get all values for a condition
      */
-    private QueryBuilder buildCondition(Condition condition) {
-        switch (condition.getOpera()) {
-            case GT:
-                return QueryBuilders.rangeQuery(condition.getField()).gt(condition.getValue().getText());
-            case LT:
-                return QueryBuilders.rangeQuery(condition.getField()).lt(condition.getValue().getText());
-            case GTE:
-                return QueryBuilders.rangeQuery(condition.getField()).gte(condition.getValue().getText());
-            case LTE:
-                return QueryBuilders.rangeQuery(condition.getField()).lte(condition.getValue().getText());
-            case EQ:
-            case MATCH_PHRASE:
-                return QueryBuilders.matchPhraseQuery(condition.getField(), condition.getValue().getText());
-            case MATCH:
-                return QueryBuilders.matchQuery(condition.getField(),
-                        condition.getValue().getText()).operator(Operator.AND);
-            case TERM:
-                return QueryBuilders.termQuery(condition.getField(), condition.getValue().getText());
-            case NIN:
-                QueryBuilders.boolQuery().mustNot(QueryBuilders.termsQuery(condition.getField(), getValues(condition)));
-            case IN:
-                return QueryBuilders.termsQuery(condition.getField(), getValues(condition));
-            case NBETWEEN:
-                return QueryBuilders.boolQuery()
-                        .mustNot(QueryBuilders.rangeQuery(condition.getField())
-                                .gte(condition.getValue().getText())
-                                .lte(((Value) condition.getValue().getPlan()).getText()));
-            case BETWEEN:
-                return QueryBuilders.rangeQuery(condition.getField())
-                        .gte(condition.getValue().getText())
-                        .lte(((Value) condition.getValue().getPlan()).getText());
-            case NLIKE:
-                return QueryBuilders.boolQuery().mustNot(QueryBuilders.wildcardQuery(condition.getField(),
-                        condition.getValue().getText().toString().replace("%", "*")));
-            case LIKE:
-                return QueryBuilders.wildcardQuery(condition.getField(),
-                        condition.getValue().getText().toString().replace("%", "*"));
-            case NREGEXP:
-                return QueryBuilders.boolQuery().mustNot(QueryBuilders.regexpQuery(condition.getField(),
-                        condition.getValue().getText().toString()));
-            case REGEXP:
-                return QueryBuilders.regexpQuery(condition.getField(), condition.getValue().getText().toString());
-            case IS:
-                return QueryBuilders.boolQuery().mustNot(QueryBuilders.existsQuery(condition.getField()));
-            default:
-                throw new EsSqlParseException("unknown where type");
-        }
-    }
-
     private List<Object> getValues(Condition condition) {
-        ArrayList<Object> values = new ArrayList<>();
-        Value v = condition.getValue();
-        values.add(v.getText());
-        while (v.getPlan() != null) {
-            v = (Value) v.getPlan();
-            values.add(v.getText());
+        List<Object> values = new ArrayList<>();
+        Value currentValue = condition.getValue();
+
+        values.add(currentValue.getText());
+        while (currentValue.getPlan() != null) {
+            currentValue = (Value) currentValue.getPlan();
+            values.add(currentValue.getText());
         }
+
         return values;
     }
 }

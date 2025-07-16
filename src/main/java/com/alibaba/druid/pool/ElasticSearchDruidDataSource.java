@@ -45,6 +45,7 @@ import javax.naming.StringRefAddr;
 import javax.sql.ConnectionEvent;
 import javax.sql.ConnectionEventListener;
 import javax.sql.PooledConnection;
+import java.io.IOException;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.sql.Connection;
@@ -1115,7 +1116,7 @@ public class ElasticSearchDruidDataSource extends DruidDataSource {
     }
 
     /**
-     * 会去重复
+     * Will remove duplicates
      *
      * @param filter
      */
@@ -1331,7 +1332,7 @@ public class ElasticSearchDruidDataSource extends DruidDataSource {
     }
 
     /**
-     * 抛弃连接，不进行回收，而是抛弃
+     * Discard connection, not recycle, but discard
      *
      * @param realConnection
      */
@@ -1564,7 +1565,7 @@ public class ElasticSearchDruidDataSource extends DruidDataSource {
     }
 
     /**
-     * 回收连接
+     * Recycle connection
      */
     protected void recycle(DruidPooledConnection pooledConnection) throws SQLException {
         final DruidConnectionHolder holder = pooledConnection.holder;
@@ -2253,7 +2254,7 @@ public class ElasticSearchDruidDataSource extends DruidDataSource {
                     }
 
                     if (emptyWait) {
-                        // 必须存在线程等待，才创建连接
+                        // Must have thread waiting to create connection
                         if (poolingCount >= notEmptyWaitThreadCount //
                                 && (!(keepAlive && activeCount + poolingCount < minIdle))
                                 && (!initTask)
@@ -2263,7 +2264,7 @@ public class ElasticSearchDruidDataSource extends DruidDataSource {
                             return;
                         }
 
-                        // 防止创建超过maxActive数量的连接
+                        // Prevent creating more than maxActive connections
                         if (activeCount + poolingCount >= maxActive) {
                             createTaskCount--;
                             return;
@@ -2420,7 +2421,7 @@ public class ElasticSearchDruidDataSource extends DruidDataSource {
                     }
 
                     if (emptyWait) {
-                        // 必须存在线程等待，才创建连接
+                        // Must have thread waiting to create connection
                         if (poolingCount >= notEmptyWaitThreadCount //
                                 && (!(keepAlive && activeCount + poolingCount < minIdle))
                                 && !isFailContinuous()
@@ -2428,7 +2429,7 @@ public class ElasticSearchDruidDataSource extends DruidDataSource {
                             empty.await();
                         }
 
-                        // 防止创建超过maxActive数量的连接
+                        // Prevent creating more than maxActive connections
                         if (activeCount + poolingCount >= maxActive) {
                             empty.await();
                             continue;
@@ -2515,7 +2516,7 @@ public class ElasticSearchDruidDataSource extends DruidDataSource {
             initedLatch.countDown();
 
             for (; ; ) {
-                // 从前面开始删除
+                // Delete from the front
                 try {
                     if (closed) {
                         break;

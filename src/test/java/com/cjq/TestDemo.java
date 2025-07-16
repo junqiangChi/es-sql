@@ -12,7 +12,7 @@ import org.junit.Test;
 public class TestDemo {
     @Test
     public void test() {
-        String sql = "UPDATE T1 SET F1 = '1', F2='2' WHERE F3 = '3' ";
+        String sql = "SELECT LENGTH(F1) FROM T1";
         SqlBaseLexer lexer = new SqlBaseLexer(new EqlParserDriver.UpperCaseCharStream(CharStreams.fromString(sql)));
         SqlBaseParser parser = new SqlBaseParser(new CommonTokenStream(lexer));
         AstBuilder astBuilder = new AstBuilder();

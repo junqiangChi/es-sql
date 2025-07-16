@@ -2,6 +2,8 @@ package com.cjq.handler;
 
 import com.cjq.common.Constant;
 import com.cjq.common.ElasticsearchJdbcConfig;
+import com.cjq.exception.ErrorCode;
+import com.cjq.exception.ExceptionUtils;
 import com.cjq.jdbc.HandlerResult;
 import com.cjq.plan.logical.Field;
 import com.cjq.plan.logical.Query;
@@ -16,6 +18,10 @@ import java.util.stream.Collectors;
 
 import static com.cjq.common.Constant.*;
 
+/**
+ * Default query response handler
+ * Processes search responses with unified exception handling
+ */
 public class DefaultQueryHandler implements ResponseHandler {
     protected final Query query;
     private final Properties properties;
@@ -24,7 +30,16 @@ public class DefaultQueryHandler implements ResponseHandler {
     private boolean isIncludeType;
     private boolean isIncludeScore;
 
+    /**
+     * Constructs a new DefaultQueryHandler
+     *
+     * @param query the query to handle
+     * @param properties configuration properties
+     */
     public DefaultQueryHandler(Query query, Properties properties) {
+        ExceptionUtils.validateNotNull(query, "Query");
+        ExceptionUtils.validateNotNull(properties, "Properties");
+        
         this.query = query;
         this.properties = properties;
         setDocInclude();
@@ -32,29 +47,37 @@ public class DefaultQueryHandler implements ResponseHandler {
 
     @Override
     public HandlerResult handle(ActionResponse response) {
-        SearchResponse searchResponse = (SearchResponse) response;
-        SearchHit[] hits = searchResponse.getHits().getHits();
-        List<Field> fields = query.getSelect().getFields();
-        boolean flat = fields.size() == 1 && fields.get(0).getFieldName().equals("*");
-        List<Map<String, Object>> docsAsMap = new ArrayList<>();
-        Set<String> hitFieldNames = new HashSet<>();
-        List<String> header = createHeadersAndFillDocsMap(query, flat, hits, docsAsMap, hitFieldNames);
-        Map<String, String> fieldNameMap = new HashMap<>();
-        if (fields.size() > 1 || !fields.get(0).getFieldName().equals("*")) {
-            for (Field field : fields) {
-                if (!field.isConstant()) {
-                    fieldNameMap.put(field.getFieldName(), field.getAlias());
+        ExceptionUtils.validateNotNull(response, "Response");
+        ExceptionUtils.validateCondition(response instanceof SearchResponse, "Response must be a SearchResponse");
+        
+        return ExceptionUtils.executeWithExceptionHandling(() -> {
+            SearchResponse searchResponse = (SearchResponse) response;
+            SearchHit[] hits = searchResponse.getHits().getHits();
+            List<Field> fields = query.getSelect().getFields();
+            boolean flat = fields.size() == 1 && fields.get(0).getFieldName().equals("*");
+            List<Map<String, Object>> docsAsMap = new ArrayList<>();
+            Set<String> hitFieldNames = new HashSet<>();
+            List<String> header = createHeadersAndFillDocsMap(query, flat, hits, docsAsMap, hitFieldNames);
+            Map<String, String> fieldNameMap = new HashMap<>();
+            if (fields.size() > 1 || !fields.get(0).getFieldName().equals("*")) {
+                for (Field field : fields) {
+                    if (!field.isConstant()) {
+                        fieldNameMap.put(field.getFieldName(), field.getAlias());
+                    }
                 }
             }
-        }
 
-        List<Field> constantFields = fields.stream().filter(Field::isConstant).collect(Collectors.toList());
-        List<List<Object>> rows = createLinesFromDocs(flat, docsAsMap, header, hitFieldNames);
-        header = header.stream().map(f -> StringUtils.isNotBlank(fieldNameMap.get(f)) ? fieldNameMap.get(f) : f).collect(Collectors.toList());
-        setConstantField(constantFields, header, rows);
-        return new HandlerResult(header, rows);
+            List<Field> constantFields = fields.stream().filter(Field::isConstant).collect(Collectors.toList());
+            List<List<Object>> rows = createLinesFromDocs(flat, docsAsMap, header, hitFieldNames);
+            header = header.stream().map(f -> StringUtils.isNotBlank(fieldNameMap.get(f)) ? fieldNameMap.get(f) : f).collect(Collectors.toList());
+            setConstantField(constantFields, header, rows);
+            return new HandlerResult(header, rows);
+        }, ErrorCode.DATA_PARSING_ERROR, "Failed to handle search response");
     }
 
+    /**
+     * Sets document inclusion flags based on configuration and query fields
+     */
     private void setDocInclude() {
         this.isIncludeIndex = Boolean.parseBoolean(properties.getProperty(ElasticsearchJdbcConfig.INCLUDE_INDEX.getName(),
                 ElasticsearchJdbcConfig.INCLUDE_INDEX.getDefaultValue()))
@@ -71,6 +94,13 @@ public class DefaultQueryHandler implements ResponseHandler {
                 || query.getSelect().getFields().stream().map(Field::getFieldName).collect(Collectors.toList()).contains(_SCORE);
     }
 
+    /**
+     * Sets constant field values in the result
+     *
+     * @param constantFields list of constant fields
+     * @param headers the headers list
+     * @param values the values list
+     */
     protected void setConstantField(List<Field> constantFields, List<String> headers, List<List<Object>> values) {
         if (constantFields != null) {
             for (Field constantField : constantFields) {
@@ -82,6 +112,15 @@ public class DefaultQueryHandler implements ResponseHandler {
         }
     }
 
+    /**
+     * Creates result rows from document maps
+     *
+     * @param flat whether to flatten nested fields
+     * @param docsAsMap the document maps
+     * @param headers the headers
+     * @param hitFieldNames the hit field names
+     * @return list of result rows
+     */
     private List<List<Object>> createLinesFromDocs(boolean flat, List<Map<String, Object>> docsAsMap, List<String> headers, Set<String> hitFieldNames) {
         List<List<Object>> objectLines = new ArrayList<>();
         for (Map<String, Object> doc : docsAsMap) {
@@ -94,6 +133,15 @@ public class DefaultQueryHandler implements ResponseHandler {
         return objectLines;
     }
 
+    /**
+     * Finds field value in document
+     *
+     * @param header the field name
+     * @param doc the document
+     * @param flat whether to flatten nested fields
+     * @param hitFieldNames the hit field names
+     * @return the field value
+     */
     private Object findFieldValue(String header, Map<String, Object> doc, boolean flat, Set<String> hitFieldNames) {
         if (flat && header.contains(".") && !hitFieldNames.contains(header)) {
             String[] split = header.split("\\.");
@@ -117,6 +165,16 @@ public class DefaultQueryHandler implements ResponseHandler {
         return null;
     }
 
+    /**
+     * Creates headers and fills document map
+     *
+     * @param query the query
+     * @param flat whether to flatten nested fields
+     * @param hits the search hits
+     * @param docsAsMap the document maps
+     * @param hitFieldNames the hit field names
+     * @return list of headers
+     */
     private List<String> createHeadersAndFillDocsMap(Query query, boolean flat, SearchHit[] hits, List<Map<String, Object>> docsAsMap, Set<String> hitFieldNames) {
         Set<String> headers = new LinkedHashSet<>();
         List<String> fieldNames = query.getSelect().getFields().stream().map(Field::getFieldName).collect(Collectors.toList());
@@ -165,6 +223,13 @@ public class DefaultQueryHandler implements ResponseHandler {
         return list;
     }
 
+    /**
+     * Merges headers from document
+     *
+     * @param headers the headers set
+     * @param doc the document
+     * @param flat whether to flatten nested fields
+     */
     private void mergeHeaders(Set<String> headers, Map<String, Object> doc, boolean flat) {
         if (!flat) {
             headers.addAll(doc.keySet());
@@ -173,6 +238,13 @@ public class DefaultQueryHandler implements ResponseHandler {
         mergeFieldNamesRecursive(headers, doc, "");
     }
 
+    /**
+     * Recursively merges field names for nested documents
+     *
+     * @param headers the headers set
+     * @param doc the document
+     * @param prefix the field prefix
+     */
     private void mergeFieldNamesRecursive(Set<String> headers, Map<String, Object> doc, String prefix) {
         for (Map.Entry<String, Object> field : doc.entrySet()) {
             Object value = field.getValue();

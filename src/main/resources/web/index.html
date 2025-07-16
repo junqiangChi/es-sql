@@ -12,7 +12,7 @@
     <script src="https://cdn.sheetjs.com/xlsx-0.19.3/package/dist/xlsx.full.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-    <!-- Tailwind 配置 -->
+    <!-- Tailwind Configuration -->
     <script>
         tailwind.config = {
             theme: {
@@ -76,7 +76,7 @@
                 @apply cursor-pointer hover:bg-primary/20 transition-colors duration-150;
             }
 
-            /* 添加表格对齐样式 */
+            /* Table alignment styles */
             .table-cell-align-left {
                 @apply text-left;
             }
@@ -89,7 +89,7 @@
                 @apply text-center;
             }
 
-            /* 历史记录样式 */
+            /* History record styles */
             .history-item {
                 @apply px-4 py-3 hover:bg-gray-100 cursor-pointer transition-colors duration-150 text-sm;
             }
@@ -106,7 +106,7 @@
             }
         }
 
-        /* 添加自定义表格样式 */
+        /* Custom table styles */
         .result-table {
             @apply min-w-full divide-y divide-gray-200;
         }
@@ -123,7 +123,7 @@
             @apply bg-gray-50;
         }
 
-        /* 数字列对齐样式 */
+        /* Number column alignment styles */
         .number-cell {
             @apply text-left font-mono;
         }
@@ -143,18 +143,20 @@
         }
 
         .result-table thead th {
-            @apply border-r border-gray-200; /* 表头列分隔线 */
+            @apply border-r border-gray-200;
+            /* Table header column separators */
         }
 
         .result-table tbody td {
-            @apply border-r border-gray-200; /* 数据列分隔线 */
+            @apply border-r border-gray-200;
+            /* Data column separators */
         }
     </style>
 </head>
 
 <body class="font-inter bg-gray-50 text-dark min-h-screen flex flex-col">
 <div id="toastContainer" class="fixed top-4 right-4 z-[9999]"></div>
-<!-- 导航栏 -->
+<!-- Navigation Bar -->
 <nav class="bg-white shadow-md sticky top-0 z-50">
     <div class="container mx-auto px-4 py-3 flex justify-between items-center">
         <div class="flex items-center space-x-2">
@@ -176,9 +178,9 @@
     </div>
 </nav>
 
-<!-- 主内容区 -->
+<!-- Main Content Area -->
 <main class="flex-grow container mx-auto px-4 py-8">
-    <!-- 查询区域 -->
+    <!-- Query Area -->
     <div class="bg-white rounded-xl shadow-md p-6 mb-8 transform transition-all duration-200 hover:shadow-lg">
         <div class="flex justify-between items-center mb-4">
             <h2 class="text-lg font-semibold text-dark flex items-center">
@@ -191,14 +193,14 @@
                     <i class="fa fa-trash-o mr-1"></i>
                     <span data-lang="clear">Clear</span>
                 </button>
-                <!-- 历史记录按钮 -->
+                <!-- History Record Button -->
                 <div class="relative">
                     <button id="historyBtn"
                             class="px-3 py-1.5 bg-gray-100 hover:bg-gray-300 text-dark rounded-lg transition-all-300 flex items-center">
                         <i class="fa fa-history mr-1"></i>
                         <span data-lang="history">History</span>
                     </button>
-                    <!-- 历史记录下拉菜单 - 添加了max-h-60和overflow-y-auto类 -->
+                    <!-- History Record Dropdown Menu - Added max-h-60 and overflow-y-auto classes -->
                     <div id="historyDropdown"
                          class="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl z-50 max-h-60 overflow-y-auto hidden">
                         <div class="p-2 border-b border-gray-200 sticky top-0 bg-white">
@@ -236,7 +238,7 @@
         </div>
     </div>
 
-    <!-- DML结果区域 -->
+    <!-- DML Result Area -->
     <div id="dmlResultContainer" class="bg-white rounded-xl shadow-md p-6 mb-8 hidden">
         <div class="flex items-center">
             <div class="mr-4 text-2xl">
@@ -246,7 +248,8 @@
                 <h3 class="text-lg font-semibold" id="dmlResultTitle" data-lang="dml-success">Operation Successful</h3>
                 <div class="mt-1">
                     <div id="dmlDetails" class="mt-3 hidden">
-                        <pre id="dmlResultDetails" class="bg-gray-50 p-3 rounded-lg text-xs font-mono overflow-x-auto"></pre>
+                        <pre id="dmlResultDetails"
+                             class="bg-gray-50 p-3 rounded-lg text-xs font-mono overflow-x-auto"></pre>
                     </div>
                 </div>
             </div>
@@ -259,7 +262,7 @@
         </div>
     </div>
 
-    <!-- 查询结果区域 -->
+    <!-- Query Result Area -->
     <div id="queryResultContainer"
          class="bg-white rounded-xl shadow-md p-6 mb-8 hidden transform transition-all duration-300 hover:shadow-lg">
         <div class="flex justify-between items-center mb-4">
@@ -291,7 +294,7 @@
             </div>
         </div>
 
-        <!-- 搜索框 -->
+        <!-- Search Box -->
         <div class="mb-4">
             <div class="relative">
                 <input type="text" id="searchInput" placeholder="Search..."
@@ -302,7 +305,7 @@
             </div>
         </div>
 
-        <!-- 结果分布统计 -->
+        <!-- Result Distribution Statistics -->
         <div id="resultStats" class="mb-4 bg-gray-50 p-4 rounded-lg hidden">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div class="flex items-center">
@@ -344,7 +347,7 @@
             </table>
         </div>
 
-        <!-- 分页控件 -->
+        <!-- Pagination Controls -->
         <div id="paginationControls" class="mt-6 flex flex-col md:flex-row justify-between items-center hidden">
             <div class="mb-4 md:mb-0">
                 <label for="pageSize" class="text-sm text-gray-500 mr-2" data-lang="show">Show</label>
@@ -395,7 +398,7 @@
         </div>
     </div>
 
-    <!-- 加载中 -->
+    <!-- Loading Indicator -->
     <div id="loadingIndicator" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
         <div class="bg-white p-6 rounded-xl shadow-lg flex items-center">
             <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mr-4"></div>
@@ -406,7 +409,7 @@
         </div>
     </div>
 
-    <!-- 错误提示 -->
+    <!-- Error Display -->
     <div id="errorContainer"
          class="bg-white rounded-xl shadow-md p-6 mb-8 hidden transform transition-all duration-300 hover:shadow-lg">
         <div class="flex items-start">
@@ -428,7 +431,7 @@
     </div>
 </main>
 
-<!-- 页脚 -->
+<!-- Footer -->
 <footer class="bg-dark text-white py-6">
     <div class="container mx-auto px-4">
         <div class="flex flex-col md:flex-row justify-between items-center">
@@ -449,7 +452,7 @@
 </footer>
 
 <script>
-    // 语言包
+    // Language Pack
     const translations = {
         'en': {
             'app-title': 'Elasticsearch SQL Tool',
@@ -576,7 +579,7 @@
     const esHost = window.location.hostname || 'localhost';
     const esPort = window.location.port || '9200';
 
-    // 分页相关变量
+    // Pagination related variables
     let currentPage = 1;
     let pageSize = 10;
     let filteredData = [];
@@ -584,13 +587,13 @@
     let sortField = null;
     let sortDirection = 'asc';
 
-    // 当前语言
+    // Current language
     let currentLang = 'en';
 
     const MAX_HISTORY = 10;
     let queryHistory = [];
 
-    // 初始化历史记录
+    // Initialize history records
     function initHistory() {
         try {
             const savedHistory = localStorage.getItem('sqlHistory');
@@ -603,7 +606,7 @@
         }
     }
 
-    // 保存历史记录到本地存储
+    // Save history records to local storage
     function saveHistory() {
         try {
             localStorage.setItem('sqlHistory', JSON.stringify(queryHistory));
@@ -612,42 +615,42 @@
         }
     }
 
-    // 添加查询到历史记录
+    // Add query to history records
     function addToHistory(sql) {
-        // 清理SQL（移除多余空格）
+        // Clean SQL (remove extra spaces)
         const cleanedSql = sql.trim();
 
-        // 如果SQL为空则不添加
+        // If SQL is empty, don't add it
         if (!cleanedSql) return;
 
-        // 检查是否已经存在相同的查询
+        // Check if the same query already exists
         const existingIndex = queryHistory.findIndex(item => item.sql === cleanedSql);
 
-        // 如果已存在，移除旧记录
+        // If it exists, remove the old record
         if (existingIndex !== -1) {
             queryHistory.splice(existingIndex, 1);
         }
 
-        // 添加新记录到数组开头
+        // Add new record to the beginning of the array
         queryHistory.unshift({
             sql: cleanedSql,
             timestamp: new Date().toISOString()
         });
 
-        // 限制历史记录数量
+        // Limit the number of history records
         if (queryHistory.length > MAX_HISTORY) {
             queryHistory.pop();
         }
 
-        // 保存到本地存储
+        // Save to local storage
         saveHistory();
 
-        // 重新渲染历史记录列表
+        // Re-render the history record list
         renderHistory();
 
     }
 
-    // 渲染历史记录列表
+    // Render history record list
     function renderHistory() {
         const historyList = document.getElementById('historyList');
         historyList.innerHTML = '';
@@ -665,9 +668,9 @@
             historyElement.className = 'history-item';
             historyElement.dataset.index = index;
 
-            // 格式化时间
+            // Format time
             const date = new Date(historyItem.timestamp);
-            const timeString = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const timeString = date.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
 
             historyElement.innerHTML = `
             <div class="flex justify-between items-start">
@@ -686,7 +689,7 @@
         });
     }
 
-    // 清空历史记录
+    // Clear history records
     function clearHistory() {
         try {
             queryHistory = [];
@@ -699,19 +702,19 @@
         }
     }
 
-    // 在DOMContentLoaded事件中添加初始化历史记录
+    // Add initialization of history records in DOMContentLoaded event
     document.addEventListener('DOMContentLoaded', function () {
         updateLanguage(currentLang);
-        initHistory();  // 初始化历史记录
+        initHistory();  // Initialize history records
 
-        // 历史记录按钮点击事件
+        // History record button click event
         document.getElementById('historyBtn').addEventListener('click', function (e) {
             e.stopPropagation();
             const dropdown = document.getElementById('historyDropdown');
             dropdown.classList.toggle('hidden');
         });
 
-        // 点击页面其他区域关闭历史记录下拉菜单
+        // Click other areas of the page to close the history record dropdown menu
         document.addEventListener('click', function (e) {
             if (!document.getElementById('historyBtn').contains(e.target) &&
                 !document.getElementById('historyDropdown').contains(e.target)) {
@@ -719,14 +722,14 @@
             }
         });
 
-        // 清空历史记录按钮事件
+        // Clear history record button event
         document.getElementById('clearHistoryBtn').addEventListener('click', function (e) {
             e.stopPropagation();
             clearHistory();
         });
     });
 
-    // 更新界面语言
+    // Update interface language
     function updateLanguage(lang) {
         currentLang = lang;
         document.querySelectorAll('[data-lang]').forEach(el => {
@@ -736,12 +739,12 @@
             }
         });
 
-        // 更新搜索框占位符
+        // Update search box placeholder
         document.getElementById('searchInput').placeholder = translations[lang]['search-placeholder'];
-        // 更新输入框占位符
+        // Update input box placeholder
         document.getElementById("sqlQuery").placeholder = translations[lang]['input-sql']
 
-        // 更新下载菜单
+        // Update download menu
         document.querySelectorAll('#downloadMenu a').forEach(link => {
             const format = link.getAttribute('data-format');
             if (format === 'csv') {
@@ -753,11 +756,11 @@
             }
         });
 
-        // 更新语言选择器
+        // Update language selector
         document.getElementById('langToggle').value = lang;
     }
 
-    // 字符计数
+    // Character count
     const sqlQuery = document.getElementById('sqlQuery');
     const charCount = document.getElementById('charCount');
 
@@ -765,21 +768,21 @@
         charCount.textContent = this.value.length;
     });
 
-    // 执行SQL
+    // Execute SQL
     document.getElementById('executeBtn').addEventListener('click', executeQuery);
 
-    // 清空按钮
+    // Clear button
     document.getElementById('clearBtn').addEventListener('click', function () {
         sqlQuery.value = '';
         charCount.textContent = '0';
     });
 
-    // 语言切换
+    // Language switch
     document.getElementById('langToggle').addEventListener('change', function () {
         updateLanguage(this.value);
     });
 
-    // 复制结果
+    // Copy results
     document.getElementById('copyBtn').addEventListener('click', function () {
         const resultTable = document.getElementById('resultTable');
         if (resultTable.innerHTML.trim()) {
@@ -792,13 +795,13 @@
         }
     });
 
-    // 下载结果
+    // Download results
     document.getElementById('downloadBtn').addEventListener('click', function (e) {
         e.stopPropagation();
         document.getElementById('downloadMenu').classList.toggle('hidden');
     });
 
-    // 下载格式选择
+    // Download format selection
     document.querySelectorAll('#downloadMenu a').forEach(link => {
         link.addEventListener('click', function (e) {
             e.preventDefault();
@@ -808,14 +811,14 @@
         });
     });
 
-    // 点击其他区域关闭下载菜单
+    // Click other areas to close download menu
     document.addEventListener('click', function (e) {
         if (!document.getElementById('downloadBtn').contains(e.target)) {
             document.getElementById('downloadMenu').classList.add('hidden');
         }
     });
 
-    // 搜索功能
+    // Search functionality
     document.getElementById('searchInput').addEventListener('input', function () {
         const searchTerm = this.value.toLowerCase().trim();
         if (!originalData || originalData.length === 0) return;
@@ -836,7 +839,7 @@
         updateResultStats();
     });
 
-    // 清空搜索
+    // Clear search
     document.getElementById('clearSearchBtn').addEventListener('click', function () {
         document.getElementById('searchInput').value = '';
         filteredData = [...originalData];
@@ -846,7 +849,7 @@
         updateResultStats();
     });
 
-    // 分页相关事件
+    // Pagination related events
     document.getElementById('pageSize').addEventListener('change', function () {
         pageSize = parseInt(this.value);
         currentPage = 1;
@@ -887,7 +890,7 @@
         }
     });
 
-    // 查看详情按钮
+    // View details button
     document.getElementById('viewDetailsBtn').addEventListener('click', function () {
         const detailsEl = document.getElementById('dmlDetails');
         const iconEl = this.querySelector('i');
@@ -914,17 +917,17 @@
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ "sql": sql })
+                    body: JSON.stringify({"sql": sql})
                 });
 
-                // 处理不同类型的响应
+                // Handle different types of responses
                 if (!response.ok) {
                     const errorData = await response.json();
                     console.error(errorData);
                     throw new Error(errorData.error?.reason || 'Unknown error');
                 }
 
-                // 尝试解析为JSON
+                // Try to parse as JSON
                 const contentType = response.headers.get('content-type');
                 if (contentType && contentType.includes('application/json')) {
                     return await response.json();
@@ -939,17 +942,17 @@
         }
     }
 
-    // 执行SQL函数
+    // Execute SQL function
     function executeQuery() {
         const sql = sqlQuery.value.trim();
         if (!sql) {
             showToast(translations[currentLang]['toast-enter-query'], 'warning');
             return;
         }
-        // 添加到历史记录
+        // Add to history records
         addToHistory(sql);
 
-        // 显示加载状态
+        // Show loading state
         document.getElementById('loadingIndicator').classList.remove('hidden');
         document.getElementById('queryResultContainer').classList.add('hidden');
         document.getElementById('dmlResultContainer').classList.add('hidden');
@@ -958,7 +961,7 @@
         callApi(sql)
             .then(data => {
                 document.getElementById('loadingIndicator').classList.add('hidden');
-                // 判断是查询结果还是DML结果
+                // Determine if it's a query result or DML result
                 if (isQueryResult(sql)) {
                     processQueryResult(data);
                 } else {
@@ -967,19 +970,19 @@
             })
             .catch(error => {
                 document.getElementById('loadingIndicator').classList.add('hidden');
-                // 显示详细错误信息
+                // Show detailed error information
                 document.getElementById('errorContainer').classList.remove('hidden');
                 document.getElementById('errorMessage').textContent = error.message;
                 document.getElementById('errorDetails').textContent = error.stack || error.message;
             });
     }
 
-    // 判断是否为查询结果
+    // Determine if it's a query result
     function isQueryResult(sql) {
-        return sql.toUpperCase().startsWith("SELECT")
+        return sql.toUpperCase().startsWith("SELECT") || sql.toUpperCase().startsWith("SHOW")
     }
 
-    // 处理DML结果
+    // Process DML results
     function processDmlResult(sql, data) {
         const dmlResultContainer = document.getElementById('dmlResultContainer');
         const dmlResultTitle = document.getElementById('dmlResultTitle');
@@ -988,21 +991,21 @@
         const dmlDetails = document.getElementById('dmlDetails');
         const viewDetailsBtn = document.getElementById('viewDetailsBtn');
 
-        // 重置UI状态
+        // Reset UI state
         dmlDetails.classList.add('hidden');
         viewDetailsBtn.querySelector('i').className = 'fa fa-chevron-down ml-1';
         viewDetailsBtn.querySelector('span').textContent = translations[currentLang]['view-details'];
 
-        // 显示DML结果容器
+        // Show DML result container
         dmlResultContainer.classList.remove('hidden');
 
-        // 判断操作类型
+        // Determine operation type
         const sqlType = sql.trim().substring(0, 6).toUpperCase();
         let message = '';
         let title = translations[currentLang]['dml-success'];
         let iconClass = 'fa-check-circle text-success';
 
-        // 根据SQL类型设置不同的消息
+        // Set different messages based on SQL type
         if (sqlType.includes('INSERT')) {
             message = translations[currentLang]['dml-insert-success'];
         } else if (sqlType.includes('UPDATE')) {
@@ -1023,27 +1026,27 @@
             message = translations[currentLang]['dml-success'];
         }
 
-        // 如果有行数信息
+        // If there is row count information
         if (data && typeof data === 'object' && data.effectRows !== undefined) {
             message += ` ${translations[currentLang]['dml-rows-affected']} ${data.effectRows}`;
         }
 
-        // 更新UI
+        // Update UI
         dmlResultTitle.textContent = title;
         dmlResultIcon.className = `fa ${iconClass} text-2xl`;
 
-        // 设置详细结果
+        // Set detailed results
         if (data) {
             dmlResultDetails.textContent = typeof data === 'object'
                 ? JSON.stringify(data, null, 2)
                 : data;
         }
 
-        // 显示成功提示
+        // Show success message
         showToast(message);
     }
 
-    // 处理查询结果
+    // Process query results
     function processQueryResult(data) {
         const queryResultContainer = document.getElementById('queryResultContainer');
         const resultTable = document.getElementById('resultTable');
@@ -1054,11 +1057,11 @@
         const paginationControls = document.getElementById('paginationControls');
         const resultStats = document.getElementById('resultStats');
 
-        // 清空表格
+        // Clear table
         tableHeader.innerHTML = '';
         tableBody.innerHTML = '';
 
-        // 检查是否有结果
+        // Check if there are results
         if (!data || !data.headers || !data.rows || data.rows.length === 0) {
             queryResultContainer.classList.remove('hidden');
             emptyResult.classList.remove('hidden');
@@ -1069,24 +1072,24 @@
             return;
         }
 
-        // 保存原始数据
+        // Save original data
         originalData = [...data.rows];
         filteredData = [...data.rows];
 
-        // 重置分页和排序
+        // Reset pagination and sorting
         currentPage = 1;
         pageSize = parseInt(document.getElementById('pageSize').value);
         sortField = null;
         sortDirection = 'asc';
 
-        // 显示结果
+        // Show results
         queryResultContainer.classList.remove('hidden');
         emptyResult.classList.add('hidden');
         resultTable.classList.remove('hidden');
         paginationControls.classList.remove('hidden');
         resultStats.classList.remove('hidden');
 
-        // 生成表头
+        // Generate table headers
         data.headers.forEach((header, index) => {
             const th = document.createElement('th');
             th.setAttribute('scope', 'col');
@@ -1096,27 +1099,27 @@
             tableHeader.appendChild(th);
         });
 
-        // 渲染表格
+        // Render table
         renderTable();
 
-        // 更新分页控件
+        // Update pagination controls
         updatePagination();
 
-        // 更新统计信息
+        // Update statistics
         updateResultStats();
 
-        // 更新记录数
+        // Update record count
         resultCount.textContent = `(${data.rows.length.toLocaleString()} ${translations[currentLang]['records']})`;
 
-        // 显示成功提示
+        // Show success message
         showToast(`${translations[currentLang]['toast-execute-success']}, ${data.rows.length.toLocaleString()} ${translations[currentLang]['records']}`);
     }
 
     function showToast(message, type = 'success', details = '') {
-        // 创建提示框元素
+        // Create toast element
         const toast = document.createElement('div');
 
-        // 设置样式和类
+        // Set styles and classes
         let bgColor, textColor, icon;
         switch (type) {
             case 'error':
@@ -1139,7 +1142,7 @@
 
         toast.className = `mb-2 ${bgColor} ${textColor} px-6 py-3 rounded-lg shadow-lg z-50 flex items-center transform transition-all duration-300 translate-y-20 opacity-0 max-w-md`;
 
-        // 设置内容
+        // Set content
         toast.innerHTML = `
         <i class="fa ${icon} mr-2 text-xl"></i>
         <div class="flex-1">
@@ -1151,32 +1154,32 @@
         </button>
       `;
 
-        // 添加到容器
+        // Add to container
         const container = document.getElementById('toastContainer');
         container.appendChild(toast);
 
-        // 显示动画
+        // Show animation
         setTimeout(() => {
             toast.classList.remove('translate-y-20', 'opacity-0');
             toast.classList.add('translate-y-0', 'opacity-100');
         }, 10);
 
-        // 添加关闭按钮事件
+        // Add close button event
         toast.querySelector('.close-toast').addEventListener('click', () => {
             removeToast(toast);
         });
 
-        // 自动关闭
+        // Auto close
         const autoCloseTimer = setTimeout(() => {
             removeToast(toast);
         }, 5000);
 
-        // 鼠标悬停时暂停自动关闭
+        // Pause auto close when mouse hovers
         toast.addEventListener('mouseenter', () => {
             clearTimeout(autoCloseTimer);
         });
 
-        // 鼠标离开时重新设置自动关闭
+        // Reset auto close when mouse leaves
         toast.addEventListener('mouseleave', () => {
             setTimeout(() => {
                 removeToast(toast);
@@ -1193,7 +1196,7 @@
         }, 300);
     }
 
-    // 渲染表格（分页）
+    // Render table (with pagination)
     function renderTable() {
         const tableBody = document.getElementById('tableBody');
         tableBody.innerHTML = '';
@@ -1202,7 +1205,7 @@
         const endIndex = Math.min(startIndex + pageSize, filteredData.length);
         const currentPageData = filteredData.slice(startIndex, endIndex);
 
-        // 生成表格内容
+        // Generate table content
         currentPageData.forEach((row, rowIndex) => {
             const tr = document.createElement('tr');
             tr.className = 'animate-fade-in';
@@ -1212,7 +1215,7 @@
                 const td = document.createElement('td');
                 td.className = 'px-6 py-4 whitespace-nowrap text-sm text-gray-500 border-b border-gray-200';
 
-                // 根据数据类型应用不同的样式
+                // Apply different styles based on data type
                 if (typeof cell === 'number' || (typeof cell === 'string' && !isNaN(parseFloat(cell)))) {
                     td.classList.add('number-cell');
                 } else if (typeof cell === 'boolean') {
@@ -1221,7 +1224,7 @@
                     td.classList.add('text-left');
                 }
 
-                // 特殊处理状态类数据
+                // Special handling for status type data
                 if (document.getElementById('tableHeader').children[cellIndex].textContent.toLowerCase() === 'status') {
                     const statusClass = getStatusClass(cell);
                     td.innerHTML = `<span class="px-2 py-1 rounded-full text-xs font-medium ${statusClass}">${cell}</span>`;
@@ -1236,7 +1239,7 @@
         });
     }
 
-    // 根据状态值返回对应的Tailwind类
+    // Return corresponding Tailwind classes based on status value
     function getStatusClass(status) {
         const statusMap = {
             'active': 'bg-green-100 text-green-800',
@@ -1247,7 +1250,7 @@
         return statusMap[status] || 'bg-gray-100 text-gray-800';
     }
 
-    // 更新分页控件
+    // Update pagination controls
     function updatePagination() {
         const pageNumbers = document.getElementById('pageNumbers');
         const firstPage = document.getElementById('firstPage');
@@ -1259,13 +1262,13 @@
 
         const totalPages = getTotalPages();
 
-        // 启用/禁用按钮
+        // Enable/disable buttons
         firstPage.disabled = currentPage === 1;
         prevPage.disabled = currentPage === 1;
         nextPage.disabled = currentPage === totalPages;
         lastPage.disabled = currentPage === totalPages;
 
-        // 生成页码
+        // Generate page numbers
         const maxVisiblePages = 5;
         let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
         let endPage = startPage + maxVisiblePages - 1;
@@ -1275,7 +1278,7 @@
             startPage = Math.max(1, endPage - maxVisiblePages + 1);
         }
 
-        // 添加第一页按钮
+        // Add first page button
         if (startPage > 1) {
             addPageButton(1);
             if (startPage > 2) {
@@ -1283,12 +1286,12 @@
             }
         }
 
-        // 添加可见页码
+        // Add visible page numbers
         for (let i = startPage; i <= endPage; i++) {
             addPageButton(i);
         }
 
-        // 添加最后一页按钮
+        // Add last page button
         if (endPage < totalPages) {
             if (endPage < totalPages - 1) {
                 addEllipsis();
@@ -1316,49 +1319,49 @@
         }
     }
 
-    // 获取总页数
+    // Get total pages
     function getTotalPages() {
         return Math.ceil(filteredData.length / pageSize);
     }
 
-    // 更新统计信息
+    // Update statistics
     function updateResultStats() {
         document.getElementById('totalRecords').textContent = originalData.length.toLocaleString();
         document.getElementById('totalColumns').textContent = document.getElementById('tableHeader').children.length;
         document.getElementById('filteredRecords').textContent = filteredData.length.toLocaleString();
     }
 
-    // 处理排序
+    // Handle sorting
     function handleSort(columnIndex) {
         const headers = document.getElementById('tableHeader').children;
 
-        // 重置所有表头的排序图标
+        // Reset sorting icons for all headers
         for (let i = 0; i < headers.length; i++) {
             if (i !== columnIndex) {
                 headers[i].innerHTML = `${headers[i].textContent.replace(/<i[^>]*>/g, '').trim()} <i class="fa fa-sort ml-1 text-primary/60"></i>`;
             }
         }
 
-        // 设置当前表头的排序图标
+        // Set sorting icon for current header
         if (sortField === columnIndex) {
-            // 切换排序方向
+            // Toggle sort direction
             sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
         } else {
-            // 设置新的排序字段
+            // Set new sort field
             sortField = columnIndex;
             sortDirection = 'asc';
         }
 
-        // 更新表头图标
+        // Update header icon
         const iconClass = sortDirection === 'asc' ? 'fa-sort-asc' : 'fa-sort-desc';
         headers[columnIndex].innerHTML = `${headers[columnIndex].textContent.replace(/<i[^>]*>/g, '').trim()} <i class="fa ${iconClass} ml-1 text-primary"></i>`;
 
-        // 排序数据
+        // Sort data
         filteredData.sort((a, b) => {
             const valueA = a[sortField];
             const valueB = b[sortField];
 
-            // 尝试将值转换为数字进行比较
+            // Try to convert values to numbers for comparison
             const numA = parseFloat(valueA);
             const numB = parseFloat(valueB);
 
@@ -1366,19 +1369,19 @@
                 return sortDirection === 'asc' ? numA - numB : numB - numA;
             }
 
-            // 如果不能转换为数字，则按字符串比较
+            // If cannot convert to numbers, compare as strings
             return sortDirection === 'asc'
                 ? valueA.toString().localeCompare(valueB.toString())
                 : valueB.toString().localeCompare(valueA.toString());
         });
 
-        // 重置分页并重新渲染表格
+        // Reset pagination and re-render table
         currentPage = 1;
         renderTable();
         updatePagination();
     }
 
-    // 下载结果
+    // Download results
     function downloadResults(format) {
         const resultTable = document.getElementById('resultTable');
         if (resultTable.innerHTML.trim()) {
@@ -1406,7 +1409,7 @@
                     fileName = `${translations[currentLang]['es-query-result']}-${Math.floor(Date.now() / 1000)}.csv`;
             }
 
-            const blob = new Blob([content], { type: contentType });
+            const blob = new Blob([content], {type: contentType});
             const link = document.createElement('a');
             const url = URL.createObjectURL(blob);
 
@@ -1421,7 +1424,7 @@
         }
     }
 
-    // 获取表格 Excel 内容
+    // Get table Excel content
     function getTableExcel(table) {
         const wb = XLSX.utils.book_new();
         const wsData = [];
@@ -1437,7 +1440,7 @@
             const cells = table.rows[i].cells;
             const dataRow = [];
             for (let j = 0; j < cells.length; j++) {
-                // 处理可能存在的 span 元素
+                // Handle possible span elements
                 const span = cells[j].querySelector('span');
                 dataRow.push(span ? span.textContent.trim() : cells[j].textContent.trim());
             }
@@ -1446,27 +1449,27 @@
 
         const ws = XLSX.utils.aoa_to_sheet(wsData);
         XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
-        return XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        return XLSX.write(wb, {bookType: 'xlsx', type: 'array'});
     }
 
-    // 获取表格 JSON 内容
+    // Get table JSON content
     function getTableJSON(table) {
         const headers = [];
         const rows = [];
 
-        // 获取表头
+        // Get headers
         const headerCells = table.rows[0].cells;
         for (let i = 0; i < headerCells.length; i++) {
             headers.push(headerCells[i].textContent.trim());
         }
 
-        // 获取数据行
+        // Get data rows
         for (let i = 1; i < table.rows.length; i++) {
             const row = {};
             const cells = table.rows[i].cells;
 
             for (let j = 0; j < cells.length; j++) {
-                // 处理状态标签
+                // Handle status labels
                 let cellValue = cells[j].textContent.trim();
                 if (cells[j].querySelector('span')) {
                     cellValue = cells[j].querySelector('span').textContent.trim();
@@ -1481,11 +1484,11 @@
         return JSON.stringify(rows, null, 2);
     }
 
-    // 获取表格 CSV 内容
+    // Get table CSV content
     function getTableCSV(table) {
         let csv = '';
 
-        // 添加表头
+        // Add headers
         const headerCells = table.rows[0].cells;
         for (let i = 0; i < headerCells.length; i++) {
             let cellText = headerCells[i].textContent.replace(/"/g, '""');
@@ -1495,11 +1498,11 @@
             csv += cellText + (i === headerCells.length - 1 ? '\n' : ',');
         }
 
-        // 添加数据行
+        // Add data rows
         for (let i = 1; i < table.rows.length; i++) {
             const cells = table.rows[i].cells;
             for (let j = 0; j < cells.length; j++) {
-                // 处理状态标签
+                // Handle status labels
                 let cellValue = cells[j].textContent.trim();
                 if (cells[j].querySelector('span')) {
                     cellValue = cells[j].querySelector('span').textContent.trim();
@@ -1516,14 +1519,14 @@
         return csv;
     }
 
-    // 获取表格文本
+    // Get table text
     function getTableText(table) {
         let text = '';
         const rows = table.rows;
         for (let i = 0; i < rows.length; i++) {
             const cells = rows[i].cells;
             for (let j = 0; j < cells.length; j++) {
-                // 处理状态标签
+                // Handle status labels
                 let cellValue = cells[j].textContent.trim();
                 if (cells[j].querySelector('span')) {
                     cellValue = cells[j].querySelector('span').textContent.trim();
@@ -1535,7 +1538,7 @@
         return text;
     }
 
-    // 初始化
+    // Initialize
     document.addEventListener('DOMContentLoaded', function () {
         updateLanguage(currentLang);
     });

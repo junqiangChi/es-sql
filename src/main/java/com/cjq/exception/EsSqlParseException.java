@@ -1,23 +1,81 @@
 package com.cjq.exception;
 
-public class EsSqlParseException extends RuntimeException{
-    public EsSqlParseException() {
-        super();
-    }
-
+/**
+ * Exception thrown when SQL parsing fails
+ * Extends BaseException to provide unified error handling
+ */
+public class EsSqlParseException extends BaseException {
+    
+    /**
+     * Constructs a new SQL parse exception with default error code
+     *
+     * @param message the detail message
+     */
     public EsSqlParseException(String message) {
-        super(message);
+        super(ErrorCode.SQL_PARSE_ERROR.getCode(), message);
     }
-
+    
+    /**
+     * Constructs a new SQL parse exception with custom error code
+     *
+     * @param errorCode the error code
+     * @param message the detail message
+     */
+    public EsSqlParseException(ErrorCode errorCode, String message) {
+        super(errorCode.getCode(), message);
+    }
+    
+    /**
+     * Constructs a new SQL parse exception with context
+     *
+     * @param message the detail message
+     * @param errorContext additional context information
+     */
+    public EsSqlParseException(String message, String errorContext) {
+        super(ErrorCode.SQL_PARSE_ERROR.getCode(), message, errorContext);
+    }
+    
+    /**
+     * Constructs a new SQL parse exception with cause
+     *
+     * @param message the detail message
+     * @param cause the cause of the exception
+     */
     public EsSqlParseException(String message, Throwable cause) {
-        super(message, cause);
+        super(ErrorCode.SQL_PARSE_ERROR.getCode(), message, cause);
     }
-
-    public EsSqlParseException(Throwable cause) {
-        super(cause);
+    
+    /**
+     * Constructs a new SQL parse exception with context and cause
+     *
+     * @param message the detail message
+     * @param errorContext additional context information
+     * @param cause the cause of the exception
+     */
+    public EsSqlParseException(String message, String errorContext, Throwable cause) {
+        super(ErrorCode.SQL_PARSE_ERROR.getCode(), message, errorContext, cause);
     }
-
-    protected EsSqlParseException(String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
-        super(message, cause, enableSuppression, writableStackTrace);
+    
+    /**
+     * Constructs a new SQL parse exception with custom error code and cause
+     *
+     * @param errorCode the error code
+     * @param message the detail message
+     * @param cause the cause of the exception
+     */
+    public EsSqlParseException(ErrorCode errorCode, String message, Throwable cause) {
+        super(errorCode.getCode(), message, cause);
+    }
+    
+    /**
+     * Constructs a new SQL parse exception with custom error code, context and cause
+     *
+     * @param errorCode the error code
+     * @param message the detail message
+     * @param errorContext additional context information
+     * @param cause the cause of the exception
+     */
+    public EsSqlParseException(ErrorCode errorCode, String message, String errorContext, Throwable cause) {
+        super(errorCode.getCode(), message, errorContext, cause);
     }
 }

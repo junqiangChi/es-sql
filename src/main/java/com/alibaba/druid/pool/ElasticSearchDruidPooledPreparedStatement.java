@@ -61,7 +61,7 @@ public class ElasticSearchDruidPooledPreparedStatement extends DruidPooledPrepar
             addResultSetTrace(poolableResultSet);
             return poolableResultSet;
         } catch (Exception e) {
-            throw new EsSqlParseException(e);
+            throw new EsSqlParseException("Execute error: ",e);
         } finally {
             connection.close();
         }

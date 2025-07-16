@@ -26,62 +26,6 @@ public class JdbcTest {
 
     @Test
     public void test() {
-            /*
-                PUT my_index_1/
-                {
-                  "mappings": {
-                    "properties": {
-                      "f1": {
-                        "type": "long"
-                      },
-                      "f2": {
-                        "type": "text",
-                        "analyzer": "ik_smart"
-                      },
-                      "f3": {
-                        "type": "keyword"
-                      },
-                      "f4": {
-                        "type": "text"
-                      }
-                    }
-                  }
-                }
-
-               PUT my_index_1/_doc/1
-                {
-                  "f1": 1,
-                  "f2": "你好，世界",
-                  "f3": "cjq945",
-                  "f4": "cjq"
-                }
-
-                PUT my_index_1/_doc/2
-                {
-                  "f1": 2,
-                  "f2": "你好，世界",
-                  "f3": "cjq945",
-                  "f4": "cjq"
-                }
-                PUT my_index_1/_doc/3
-                {
-                  "f1": 3,
-                  "f2": "你好，世界",
-                  "f3": "cjq945",
-                  "f4": "cjq"
-                }
-                PUT my_index_1/_doc/4
-                {
-                  "f1":4,
-                  "f2": "你好，世界"
-                }
-
-                PUT my_index_1/_doc/5
-                {
-                  "f1": 5,
-                  "f2": "你好，世界"
-                }
-             */
 //            String sql = "SELECT * FROM my_index_1 t1 WHERE f3 NOT REGEXP '[a-z0-9]+' OR f1 > 1";
 //            String sql = "SELECT * FROM my_index_1 t1 WHERE f3 REGEXP '[a-z0-9]+' AND f1 > 1";
 //            String sql = "SELECT * FROM my_index_1 t1 WHERE f3 REGEXP '[a-z0-9]+' and f1 > 1";
@@ -96,16 +40,16 @@ public class JdbcTest {
 //            String sql = "SELECT * FROM my_index_1 WHERE f3 like 'cjq%'";
 //            String sql = "SELECT * FROM my_index_1 WHERE f3 not like 'cjq%'";
 //        String sql = "select sum(f1) g1, avg(f2) g2 from my_index1 order by g2 desc, f3 desc ";
-//        String sql = "select f3,f4,sum(f1) as f33, avg(f2) as avg from my_index1 group by f3,f4";
+        String sql = "select f3,f4,sum(f1) as f33, avg(f2) as avg from my_index1 group by f3,f4";
 //        String sql = "drop table my_index11";
 //        String sql = "show tables";
 //        String sql = "show tables like 'my_*'";
-//        sqlExecuteQuery(sql);
+        sqlExecuteQuery(sql);
 //        String sql = "drop table my_index123";
 //        String sql = "drop table if exists my_index123";
 //        String sql = "update my_index1 set f2 = 2312 by '8'";
-        String sql = "update my_index1 set f2 = 2312 where f1 = 1231231";
-        sqlExecute(sql);
+//        String sql = "update my_index1 set f2 = 2312 where f1 = 1231231";
+//        sqlExecute(sql);
 
     }
 

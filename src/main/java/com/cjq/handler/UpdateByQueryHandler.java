@@ -1,6 +1,8 @@
 package com.cjq.handler;
 
 import com.cjq.exception.ElasticsearchExecuteException;
+import com.cjq.exception.ExceptionHandler;
+import com.cjq.exception.ErrorCode;
 import com.cjq.jdbc.HandlerResult;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.bulk.BulkItemResponse;
@@ -27,7 +29,8 @@ public class UpdateByQueryHandler implements ResponseHandler {
                 }
             }
             errorMsg.append("]");
-            throw new ElasticsearchExecuteException(errorMsg.toString());
+            ExceptionHandler.getInstance().handleException(new ElasticsearchExecuteException(errorMsg.toString()));
+            throw ExceptionHandler.getInstance().createBaseException(new ElasticsearchExecuteException(errorMsg.toString()), ErrorCode.EXECUTION_FAILED);
         }
         return new HandlerResult(new ArrayList<>(), new ArrayList<>())
                 .setSuccess(true, bulkByScrollResponse.getUpdated()).setDml(true);

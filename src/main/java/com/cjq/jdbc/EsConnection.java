@@ -96,14 +96,14 @@ public class EsConnection implements Connection {
 
     @Override
     public void close() throws SQLException {
-        if (client != null && !client.isClose()) {
+        if (client != null && !client.isClosed()) {
             client.close();
         }
     }
 
     @Override
     public boolean isClosed() {
-        return client.isClose();
+        return client.isClosed();
     }
 
     @Override
