@@ -33,7 +33,10 @@ import java.io.IOException;
 import java.util.*;
 
 public class EsSqlRestAction extends BaseRestHandler {
-
+    private static final String ROUTE_PATH = "_es_sql";
+    private static final String EXPLAIN = "explain";
+    private static final String EXPLAIN_ROUTE_PATH = "_es_sql/explain";
+    private static final String WEB_SQL_EXEC_ROUTE_PATH = "web_sql_exec";
 
     @Override
     public String getName() {
@@ -43,12 +46,11 @@ public class EsSqlRestAction extends BaseRestHandler {
     @Override
     public List<Route> routes() {
         return Collections.unmodifiableList(Arrays.asList(
-                new Route(RestRequest.Method.POST, "/_es_sql"),
-                new Route(RestRequest.Method.POST, "/_es_sql/explain"),
-                new Route(RestRequest.Method.GET, "/_es_sql"),
-                new Route(RestRequest.Method.GET, "/_es_sql/explain"),
-                new Route(RestRequest.Method.GET, "/sql_plugin"),
-                new Route(RestRequest.Method.POST, "/web_sql_query"))
+                new Route(RestRequest.Method.POST, ROUTE_PATH),
+                new Route(RestRequest.Method.POST, EXPLAIN_ROUTE_PATH),
+                new Route(RestRequest.Method.GET, ROUTE_PATH),
+                new Route(RestRequest.Method.GET, EXPLAIN_ROUTE_PATH),
+                new Route(RestRequest.Method.POST, WEB_SQL_EXEC_ROUTE_PATH))
         );
     }
 
@@ -74,9 +76,9 @@ public class EsSqlRestAction extends BaseRestHandler {
         ActionPlan action = actionPlanFactory.createAction(null, plan);
         ActionRequest actionRequest = action.explain();
         XContentBuilder xContentBuilder = XContentFactory.jsonBuilder().prettyPrint();
-        if (request.path().endsWith("/explain")) {
+        if (request.path().endsWith(EXPLAIN)) {
             return explain(actionRequest, plan, xContentBuilder);
-        } else if (request.path().endsWith("web_sql_query")) {
+        } else if (request.path().endsWith(WEB_SQL_EXEC_ROUTE_PATH)) {
             return webExecute(client, actionRequest, plan);
         }
         return execute(client, actionRequest, plan, xContentBuilder);

@@ -1,9 +1,9 @@
 package com.cjq.handler;
 
+import com.cjq.exception.ErrorCode;
 import com.cjq.exception.EsSqlParseException;
 import com.cjq.plan.logical.*;
 
-import com.cjq.common.Constant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -54,6 +54,6 @@ public class HandlerFactory {
             return creator.apply(plan, properties);
         }
         
-        throw new EsSqlParseException(Constant.ERROR_UNSUPPORTED_PLAN_TYPE + plan.getClass().getName());
+        throw new EsSqlParseException(ErrorCode.UNSUPPORTED_PLAN_TYPE + plan.getClass().getName());
     }
 }

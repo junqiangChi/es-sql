@@ -10,11 +10,7 @@ import org.antlr.v4.runtime.tree.ErrorNodeImpl;
 import org.antlr.v4.runtime.tree.ParseTree;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -22,7 +18,7 @@ import java.util.stream.Collectors;
  * AST Builder for SQL parsing, converts parse tree to logical plan
  */
 public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
-    
+
     // Constants for operator symbols
     private static final String NOT_REGEXP = "NOT REGEXP";
     private static final String REGEXP = "REGEXP";
@@ -34,7 +30,7 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
     private static final String ILIKE = "ILIKE";
     private static final String NOT_BETWEEN = "NOT BETWEEN";
     private static final String BETWEEN = "BETWEEN";
-    
+
     // Error messages
     private static final String ERROR_SINGLE_STATEMENT = "Single statement error: ";
     private static final String ERROR_FIELD_NAME_INCORRECT = "Field name incorrect, cannot start with a number";
@@ -42,10 +38,10 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
     private static final String ERROR_NOT_SUPPORTED_SYNTAX = "not supported syntax: ";
     private static final String ERROR_DUPLICATE_FIELD = "Duplicate field: ";
     private static final String ERROR_WHERE_OR_BY_EMPTY = "WHERE or BY cannot be empty";
-    
+
     // Operator mapping for predicates
     private static final Map<String, Function<Boolean, String>> OPERATOR_MAPPING = createOperatorMapping();
-    
+
     private static Map<String, Function<Boolean, String>> createOperatorMapping() {
         Map<String, Function<Boolean, String>> mapping = new HashMap<>();
         mapping.put("RLIKE", hasNot -> hasNot ? NOT_REGEXP : REGEXP);
@@ -89,44 +85,99 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
     public LogicalPlan visitRegularQuerySpecification(SqlBaseParser.RegularQuerySpecificationContext ctx) {
         SqlBaseParser.SelectClauseContext selectClauseContext = ctx.selectClause();
         From from = (From) visit(ctx.fromClause());
-        
-        List<Field> fields = selectClauseContext
-                .namedExpressionSeq()
-                .namedExpression()
-                .stream()
-                .map(this::getField)
-                .collect(Collectors.toList());
-                
+        List<Field> fields = selectClauseContext.namedExpressionSeq().namedExpression().stream().map(this::getField).collect(Collectors.toList());
         SqlBaseParser.WhereClauseContext whereClauseContext = ctx.whereClause();
         Where where = whereClauseContext == null ? null : (Where) visit(whereClauseContext);
-        
         GroupBy groupBy = ctx.aggregationClause() == null ? null : (GroupBy) visit(ctx.aggregationClause());
         return new Query(new Select(fields), from, where, groupBy);
     }
 
     @Override
+    public LogicalPlan visitSearchedCase(SqlBaseParser.SearchedCaseContext ctx) {
+        List<SqlBaseParser.WhenClauseContext> whenClauseContexts = ctx.whenClause();
+        List<Where> wheres = new ArrayList<>();
+        ArrayList<Value> then = new ArrayList<>();
+        whenClauseContexts.forEach(whereClauseContext -> {
+            List<SqlBaseParser.ExpressionContext> expressions = whereClauseContext.expression();
+            wheres.add((Where) visit(expressions.get(0)));
+            then.add((Value) visit(expressions.get(1)));
+        });
+        FunctionField.CaseWhenThenFunctionField caseWhen = new FunctionField.CaseWhenThenFunctionField("CASE_WHEN");
+        caseWhen.setWheres(wheres);
+        caseWhen.setThen(then);
+        caseWhen.setElseValue((Value) visit(ctx.expression()));
+        return caseWhen;
+    }
+
+    @Override
     public LogicalPlan visitFunctionCall(SqlBaseParser.FunctionCallContext ctx) {
         String funcName = ctx.functionName().getText().toUpperCase();
-        String fieldName = ctx.functionArgument(0).getText();
-        return new Field(fieldName, funcName);
+        LogicalPlan logicalPlan = visit(ctx.functionArgument(0));
+        FunctionField functionField;
+        switch (funcName) {
+            case "CONCAT":
+            case "CONCAT_WS":
+            case "IFNULL":
+            case "COALESCE":
+                FunctionField.MultipleFieldValueFunctionField multipleFieldValueFunctionField = new FunctionField.MultipleFieldValueFunctionField(funcName);
+                List<LogicalPlan> concatFields = ctx.functionArgument().stream().map(f -> visit(f.expression())).collect(Collectors.toList());
+                multipleFieldValueFunctionField.setMultipleLogicalPlan(concatFields);
+                functionField = multipleFieldValueFunctionField;
+                break;
+            case "SUBSTRING":
+            case "SUBSTR":
+            case "REPLACE":
+            case "POW":
+            case "MOD":
+            case "IF":
+                FunctionField.MultipleValueFunctionField multipleValueFunctionField =
+                        new FunctionField.MultipleValueFunctionField(funcName, visit(ctx.functionArgument(0)));
+                multipleValueFunctionField.setLogicalPlan(visit(ctx.functionArgument(0)));
+                List<Value> values = ctx.functionArgument().subList(1, ctx.functionArgument().size()).stream()
+                        .map(fArg -> (Value) visit(fArg.expression()))
+                        .collect(Collectors.toList());
+                multipleValueFunctionField.setValues(values);
+                functionField = multipleValueFunctionField;
+                break;
+            default:
+                functionField = logicalPlan instanceof Field ? new FunctionField(((Field) logicalPlan).getFieldName(), funcName) :
+                        new FunctionField(funcName, (Value) logicalPlan);
+        }
+
+        return functionField;
     }
 
     @Override
     public LogicalPlan visitColumnReference(SqlBaseParser.ColumnReferenceContext ctx) {
-        return new Field(ctx.getText());
+        String fieldName = ctx.getText();
+        Field field = new Field(fieldName);
+        if (fieldName.contains(Constant.POINT)) {
+            field.setNested(true);
+        }
+        return field;
     }
 
+    /**
+     * Process fields
+     *
+     * @param ctx the parse tree
+     * @return LogicalPlan
+     */
     private Field getField(SqlBaseParser.NamedExpressionContext ctx) {
         try {
             LogicalPlan visit = visit(ctx.expression().booleanExpression());
-            if (visit instanceof Value) {
+            if (visit instanceof Field) {
+                Field field = (Field) visit;
+                if (ctx.errorCapturingIdentifier() != null) {
+                    field.setAlias(ctx.errorCapturingIdentifier().identifier().getText());
+                }
+                return field;
+            } else if (visit instanceof Value) {
+                Value value = (Value) visit;
+                return new ConstantField(ctx.errorCapturingIdentifier().identifier().getText(), value.getText());
+            } else {
                 throw new EsSqlParseException(ERROR_FIELD_NAME_INCORRECT);
             }
-            Field field = (Field) visit;
-            if (ctx.errorCapturingIdentifier() != null) {
-                field.setAlias(ctx.errorCapturingIdentifier().getText());
-            }
-            return field;
         } catch (Exception e) {
             ExceptionHandler.getInstance().handleException(e);
             throw ExceptionHandler.getInstance().createBaseException(e, ErrorCode.INVALID_FIELD_NAME);
@@ -134,12 +185,23 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
     }
 
     @Override
+    public LogicalPlan visitDereference(SqlBaseParser.DereferenceContext ctx) {
+        SqlBaseParser.PrimaryExpressionContext primaryExpressionContext = ctx.primaryExpression();
+        Field field = (Field) visit(primaryExpressionContext);
+        if (primaryExpressionContext instanceof SqlBaseParser.DereferenceContext) {
+            field = (Field) visit(primaryExpressionContext);
+        }
+        if (ctx.DOT() != null && ctx.identifier() != null) {
+            field.setNested(true);
+            field.setFieldName(field.getFieldName() + ctx.DOT() + ctx.identifier().getText());
+        }
+        return field;
+    }
+
+    @Override
     public LogicalPlan visitAggregationClause(SqlBaseParser.AggregationClauseContext ctx) {
         if (ctx.GROUP() != null) {
-            List<Field> groupByFields = ctx.groupByClause()
-                    .stream()
-                    .map(f -> (Field) visit(f))
-                    .collect(Collectors.toList());
+            List<Field> groupByFields = ctx.groupByClause().stream().map(f -> (Field) visit(f)).collect(Collectors.toList());
             return new GroupBy(groupByFields);
         } else {
             throw new EsSqlParseException(ERROR_ONLY_GROUP_BY_SUPPORTED);
@@ -177,7 +239,7 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
     @Override
     public LogicalPlan visitIntegerLiteral(SqlBaseParser.IntegerLiteralContext ctx) {
         String text = ctx.getText();
-        return text.contains(".") ? new Value(Double.parseDouble(text)) : new Value(Integer.parseInt(text));
+        return text.contains(Constant.POINT) ? new Value(Double.parseDouble(text)) : new Value(Integer.parseInt(text));
     }
 
     @Override
@@ -202,19 +264,12 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
 
     @Override
     public LogicalPlan visitComparison(SqlBaseParser.ComparisonContext ctx) {
-        List<SqlBaseParser.ValueExpressionDefaultContext> expressions = ctx.valueExpression()
-                .stream()
-                .map(f -> (SqlBaseParser.ValueExpressionDefaultContext) f)
-                .collect(Collectors.toList());
-                
+        List<SqlBaseParser.ValueExpressionDefaultContext> expressions = ctx.valueExpression().stream().map(f -> (SqlBaseParser.ValueExpressionDefaultContext) f).collect(Collectors.toList());
+
         SqlBaseParser.ValueExpressionDefaultContext left = expressions.get(0);
         SqlBaseParser.ValueExpressionDefaultContext right = expressions.get(1);
-        
-        Condition condition = new Condition(
-                left.primaryExpression().getText(), 
-                ctx.comparisonOperator().getText(),
-                (Value) visit(right.primaryExpression())
-        );
+
+        Condition condition = new Condition((Field) visit(left.primaryExpression()), ctx.comparisonOperator().getText(), (Value) visit(right.primaryExpression()));
         return new Where(condition, null, null);
     }
 
@@ -223,11 +278,11 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
         if (ctx.valueExpression() instanceof SqlBaseParser.ComparisonContext) {
             return visit(ctx.valueExpression());
         }
-        
+
         if (ctx.valueExpression() instanceof SqlBaseParser.ValueExpressionDefaultContext && ctx.predicate() != null) {
             return buildPredicatedWhere(ctx);
         }
-        
+
         return visit(ctx.valueExpression());
     }
 
@@ -236,7 +291,7 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
             SqlBaseParser.PredicateContext predicate = ctx.predicate();
             String operatorSymbol = getOperatorSymbol(predicate);
             Value value = buildPredicateValue(predicate);
-            Condition condition = new Condition(ctx.valueExpression().getText(), operatorSymbol, value);
+            Condition condition = new Condition((Field) visit(ctx.valueExpression()), operatorSymbol, value);
             return new Where(condition, null, null);
         } catch (Exception e) {
             ExceptionHandler.getInstance().handleException(e);
@@ -246,7 +301,7 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
 
     private Value buildPredicateValue(SqlBaseParser.PredicateContext predicate) {
         List<SqlBaseParser.ExpressionContext> expressions = predicate.expression();
-        
+
         if (expressions != null && !expressions.isEmpty()) {
             return buildValueFromExpressions(expressions);
         } else if (predicate.valueExpression() != null && predicate.valueExpression().size() > 1) {
@@ -285,18 +340,18 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
         List<SqlBaseParser.BooleanExpressionContext> booleanExpressions = ctx.booleanExpression();
         SqlBaseParser.BooleanExpressionContext left = booleanExpressions.get(0);
         SqlBaseParser.BooleanExpressionContext right = booleanExpressions.get(1);
-        
+
         WhereOpr whereOpr = WhereOpr.valueOf(ctx.operator.getText().toUpperCase());
-        
+
         Where where = (Where) visit(right);
         where.setOpr(whereOpr);
         where.setNextWhere((Where) visit(left));
-        
+
         return where;
     }
 
     /**
-     * When the value after where is a constant, it will return single quotes, 
+     * When the value after where is a constant, it will return single quotes,
      * so process it in this method to remove the quotes
      *
      * @param ctx the parse tree with {@link SqlBaseParser.StringLiteralContext}
@@ -311,22 +366,16 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
     @Override
     public LogicalPlan visitSortItem(SqlBaseParser.SortItemContext ctx) {
         String field = ctx.expression().getText();
-        Sort.OrderType orderType = ctx.getChildCount() > 1 ? 
-                Sort.OrderType.valueOf(ctx.getChild(1).getText().toUpperCase()) : 
-                Sort.OrderType.ASC;
+        Sort.OrderType orderType = ctx.getChildCount() > 1 ? Sort.OrderType.valueOf(ctx.getChild(1).getText().toUpperCase()) : Sort.OrderType.ASC;
         return new Sort(field, orderType);
     }
 
     @Override
     public LogicalPlan visitQueryOrganization(SqlBaseParser.QueryOrganizationContext ctx) {
         OrderBy orderBy = new OrderBy();
-        List<Sort> sorts = ctx.sortItem()
-                .stream()
-                .map(this::visit)
-                .map(sort -> (Sort) sort)
-                .collect(Collectors.toList());
+        List<Sort> sorts = ctx.sortItem().stream().map(this::visit).map(sort -> (Sort) sort).collect(Collectors.toList());
         orderBy.setSorts(sorts);
-        
+
         LogicalPlan limitLogical = orderBy.optionalMap(ctx, (queryContext, limit) -> {
             if (queryContext.LIMIT() != null) {
                 limit = buildLimit(queryContext);
@@ -339,10 +388,7 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
 
     private Limit buildLimit(SqlBaseParser.QueryOrganizationContext ctx) {
         if (ctx.limitPagination() != null) {
-            List<String> values = ctx.limitPagination().INTEGER_VALUE()
-                    .stream()
-                    .map(Object::toString)
-                    .collect(Collectors.toList());
+            List<String> values = ctx.limitPagination().INTEGER_VALUE().stream().map(Object::toString).collect(Collectors.toList());
             return new Limit(Integer.parseInt(values.get(0)), Integer.parseInt(values.get(1)));
         } else {
             return new Limit(0, Integer.parseInt(ctx.limit.getText()));
@@ -392,12 +438,12 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
     public LogicalPlan visitInsertIntoTable(SqlBaseParser.InsertIntoTableContext ctx) {
         Insert insert = new Insert();
         From from = new From(ctx.identifierReference().getText());
-        
+
         if (ctx.identifierList() != null) {
             List<Field> fields = buildInsertFields(ctx.identifierList().identifierSeq().errorCapturingIdentifier(), insert);
             insert.setFields(fields);
         }
-        
+
         insert.setFrom(from);
         return insert;
     }
@@ -431,12 +477,8 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
 
     @Override
     public LogicalPlan visitRowConstructor(SqlBaseParser.RowConstructorContext ctx) {
-        List<Value> row = ctx.namedExpression()
-                .stream()
-                .map(this::visit)
-                .map(value -> (Value) value)
-                .collect(Collectors.toList());
-        
+        List<Value> row = ctx.namedExpression().stream().map(this::visit).map(value -> (Value) value).collect(Collectors.toList());
+
         Insert insert = new Insert();
         insert.setRow(row);
         return insert;
@@ -456,12 +498,12 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
     public LogicalPlan visitUpdateTable(SqlBaseParser.UpdateTableContext ctx) {
         String index = ctx.identifierReference().multipartIdentifier().errorCapturingIdentifier.identifier().getText();
         From from = new From(index);
-        
+
         List<SqlBaseParser.AssignmentContext> assignments = ctx.setClause().assignmentList().assignment();
         List<Field> fields = new ArrayList<>();
         List<Value> values = new ArrayList<>();
         HashSet<String> fieldSet = new HashSet<>();
-        
+
         assignments.forEach(assignment -> {
             String field = assignment.multipartIdentifier().errorCapturingIdentifier.identifier().getText();
             if (!fieldSet.add(field)) {
@@ -470,7 +512,7 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
             fields.add(new Field(field));
             values.add((Value) visit(assignment.expression().booleanExpression()));
         });
-        
+
         if (ctx.BY() != null) {
             String docId = ((Value) visit(ctx.valueExpression())).getText().toString();
             return new Update(from, fields, values, docId);
@@ -505,7 +547,7 @@ public class AstBuilder extends SqlBaseParserBaseVisitor<LogicalPlan> {
             for (Map.Entry<String, Function<Boolean, String>> entry : OPERATOR_MAPPING.entrySet()) {
                 String operator = entry.getKey();
                 Function<Boolean, String> symbolFunction = entry.getValue();
-                
+
                 if (isPredicateOperator(predicate, operator)) {
                     boolean hasNot = predicate.NOT() != null;
                     return symbolFunction.apply(hasNot);

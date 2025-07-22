@@ -1,6 +1,6 @@
 package com.cjq.handler;
 
-import com.cjq.common.Constant;
+import com.cjq.exception.ErrorCode;
 import com.cjq.jdbc.HandlerResult;
 import org.elasticsearch.action.ActionResponse;
 
@@ -17,7 +17,7 @@ public abstract class BaseHandler implements ResponseHandler {
      */
     protected void validateResponse(ActionResponse response) {
         if (response == null) {
-            throw new IllegalArgumentException(Constant.ERROR_RESPONSE_NULL);
+            throw new IllegalArgumentException(ErrorCode.RESPONSE_NULL.getDefaultMessage());
         }
     }
     

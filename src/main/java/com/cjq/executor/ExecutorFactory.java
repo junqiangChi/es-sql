@@ -1,11 +1,11 @@
 package com.cjq.executor;
 
 import com.cjq.domain.Client;
+import com.cjq.exception.ErrorCode;
 import com.cjq.exception.EsSqlParseException;
 import com.cjq.plan.logical.*;
 import org.elasticsearch.client.node.NodeClient;
 
-import com.cjq.common.Constant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BiFunction;
@@ -60,8 +60,8 @@ public class ExecutorFactory {
         if (creator != null) {
             return creator.apply(client, plan);
         }
-        
-        throw new EsSqlParseException(Constant.ERROR_UNSUPPORTED_PLAN_TYPE + plan.getClass().getName());
+
+        throw new EsSqlParseException(ErrorCode.UNSUPPORTED_PLAN_TYPE + plan.getClass().getName());
     }
 
     public Executor createActionPlanWebExecutor(LogicalPlan plan, NodeClient nodeClient) {
@@ -71,6 +71,6 @@ public class ExecutorFactory {
             return creator.apply(nodeClient, plan);
         }
         
-        throw new EsSqlParseException(Constant.ERROR_UNSUPPORTED_PLAN_TYPE + plan.getClass().getName());
+        throw new EsSqlParseException(ErrorCode.UNSUPPORTED_PLAN_TYPE + plan.getClass().getName());
     }
 }

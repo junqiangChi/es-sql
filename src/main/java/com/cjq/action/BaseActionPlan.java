@@ -1,6 +1,6 @@
 package com.cjq.action;
 
-import com.cjq.common.Constant;
+import com.cjq.exception.ErrorCode;
 import com.cjq.plan.logical.LogicalPlan;
 import org.elasticsearch.action.ActionRequest;
 
@@ -49,7 +49,7 @@ public abstract class BaseActionPlan implements ActionPlan {
      */
     protected void validateLogicalPlan() {
         if (logicalPlan == null) {
-            throw new IllegalArgumentException(Constant.ERROR_LOGICAL_PLAN_NULL);
+            throw new IllegalArgumentException(ErrorCode.LOGICAL_PLAN_NULL.getDefaultMessage());
         }
     }
 } 

@@ -78,6 +78,29 @@ http://localhost:9200/es_sql_plugin
         - _index : 索引名
         - _type : 索引类型
         - _score : 文档分数
+    - ✅ 嵌套字段
+        - 嵌套字段不支持聚合函数
+    - ✅ 函数
+        - ✅LENGTH()
+        - ✅LOWER()
+        - ✅UPPER()
+        - ✅SUBSTRING() | SUBSTR()
+        - ✅TRIM()
+        - ✅CONCAT() | CONCAT_WS()
+        - ✅REPLACE()
+        - ✅ABS()
+        - ✅CEIL()
+        - ✅FLOOR()
+        - ✅ROUND()
+        - ✅MOD()
+        - ✅POW()
+        - ✅SQRT()
+        - ✅SQRT()
+        - ✅RAND()
+        - ✅CASE WHEN THEN ELSE END
+        - ✅IF()
+        - ✅IFNULL()
+        - ✅COALESCE()
 - ✅ WHERE
     - ✅ =
     - ✅ >

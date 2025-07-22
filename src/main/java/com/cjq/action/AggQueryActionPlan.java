@@ -1,5 +1,6 @@
 package com.cjq.action;
 
+import com.cjq.exception.ErrorCode;
 import com.cjq.exception.EsSqlParseException;
 import com.cjq.plan.logical.*;
 import org.elasticsearch.action.ActionRequest;
@@ -18,7 +19,7 @@ import java.util.stream.Collectors;
 import static com.cjq.common.Constant.GROUP_BY_PREFIX;
 
 public class AggQueryActionPlan extends DefaultQueryActionPlan {
-    private List<Field> funcFields;
+    private List<FunctionField> funcFields;
     private OrderBy orderBy;
 
     public AggQueryActionPlan(LogicalPlan logicalPlan) {
@@ -29,7 +30,9 @@ public class AggQueryActionPlan extends DefaultQueryActionPlan {
     public ActionRequest explain() {
         checkAgg();
         ActionRequest actionRequest = super.explain();
-        funcFields = query.getSelect().getFields().stream().filter(Field::isFunction).collect(Collectors.toList());
+        funcFields = query.getSelect().getFields().stream().filter(f -> f instanceof FunctionField)
+                .map(f -> (FunctionField) f)
+                .collect(Collectors.toList());
         setGroupBy(query.getGroupBy());
         return actionRequest;
     }
@@ -37,18 +40,18 @@ public class AggQueryActionPlan extends DefaultQueryActionPlan {
     private void checkAgg() {
         if (query.getGroupBy() == null) {
             for (Field field : query.getSelect().getFields()) {
-                if (field.getFuncName() == null) {
-                    throw new EsSqlParseException("The Aggregation SQL can only have aggregation function fields without groupBy filed");
+                if (!(field instanceof FunctionField)) {
+                    throw new EsSqlParseException(ErrorCode.ONLY_AGGREGATION_FIELD_WITHOUT_GROUP_BY.getDefaultMessage());
                 }
             }
         } else {
             List<Field> groupByFields = query.getGroupBy().getGroupByFields();
             List<String> groupByFieldNames = groupByFields.stream().map(Field::getFieldName).collect(Collectors.toList());
-            List<Field> normalField = query.getSelect().getFields().stream().filter(f -> f.getFuncName() == null)
+            List<Field> normalField = query.getSelect().getFields().stream().filter(f -> !(f instanceof FunctionField))
                     .collect(Collectors.toList());
             for (Field field : normalField) {
-                if (!groupByFieldNames.contains(field.getFieldName())) {
-                    throw new EsSqlParseException("The filed " + field.getFieldName() + " is not aggregation field");
+                if (!groupByFieldNames.contains(field.getFieldName()) && !(field instanceof ConstantField)) {
+                    throw new EsSqlParseException(ErrorCode.NOT_AGGREGATION_FIELD, field.getFieldName());
                 }
             }
         }
@@ -68,7 +71,7 @@ public class AggQueryActionPlan extends DefaultQueryActionPlan {
     @Override
     protected void setGroupBy(GroupBy groupBy) {
         if (groupBy == null) {
-            for (Field funcField : funcFields) {
+            for (FunctionField funcField : funcFields) {
                 searchSourceBuilder.aggregation(getAggFunction(funcField));
             }
         } else {
@@ -93,7 +96,7 @@ public class AggQueryActionPlan extends DefaultQueryActionPlan {
                 List<Sort> sorts = orderBy.getSorts();
                 applySort(sorts, lastAggregation);
             }
-            for (Field funcField : funcFields) {
+            for (FunctionField funcField : funcFields) {
                 AggregationBuilder aggFunction = getAggFunction(funcField);
                 lastAggregation.subAggregation(aggFunction);
             }
@@ -117,7 +120,6 @@ public class AggQueryActionPlan extends DefaultQueryActionPlan {
             sortableFields.add(groupByField.getFieldName());
         }
         List<String> funcFieldName = funcFields.stream()
-                .filter(Field::isFunction)
                 .map(Field::getAlias)
                 .collect(Collectors.toList());
         for (Sort sort : sorts) {
@@ -131,7 +133,7 @@ public class AggQueryActionPlan extends DefaultQueryActionPlan {
                     orders.add(BucketOrder.key(isAsc));
                 }
             } else {
-                throw new EsSqlParseException("Sort field only support name or alias");
+                throw new EsSqlParseException(ErrorCode.SORT_FIELD_ONLY_SUPPORT_NAME_OR_ALIAS.getDefaultMessage());
             }
         }
         if (!orders.isEmpty()) {
@@ -139,7 +141,7 @@ public class AggQueryActionPlan extends DefaultQueryActionPlan {
         }
     }
 
-    private AggregationBuilder getAggFunction(Field funcField) {
+    private AggregationBuilder getAggFunction(FunctionField funcField) {
         String funcFieldName = funcField.getAlias() != null ? funcField.getAlias() : funcField.getFuncName() +
                 "(" + funcField.getFieldName() + ")";
         switch (funcField.getFuncName()) {
@@ -155,7 +157,7 @@ public class AggQueryActionPlan extends DefaultQueryActionPlan {
             case SUM:
                 return AggregationBuilders.sum(funcFieldName).missing(0).field(funcField.getFieldName());
             default:
-                throw new EsSqlParseException("The function " + funcField.getFuncName() + " is not supported yet");
+                throw new EsSqlParseException(ErrorCode.UNSUPPORTED_FUNCTION, funcField.getFuncName().toString());
         }
     }
 }

@@ -19,7 +19,7 @@ public class ShowHandler extends BaseHandler {
         String[] indices = getIndexResponse.getIndices();
         
         List<List<Object>> lines = Arrays.stream(indices)
-                .filter(index -> !index.startsWith(Constant.HIDDEN_INDEX_PREFIX))
+                .filter(index -> !index.startsWith(Constant.POINT))
                 .map(index -> Collections.singletonList((Object) index))
                 .collect(Collectors.toList());
                 

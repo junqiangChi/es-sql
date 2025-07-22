@@ -1,11 +1,11 @@
 package com.cjq.executor;
 
 import com.cjq.domain.Client;
+import com.cjq.exception.ErrorCode;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.client.node.NodeClient;
 
-import com.cjq.common.Constant;
 import java.io.IOException;
 
 /**
@@ -37,7 +37,7 @@ public abstract class BaseExecutor implements Executor {
      */
     protected void validateClient() {
         if (client == null) {
-            throw new IllegalStateException(Constant.ERROR_CLIENT_NOT_INITIALIZED);
+            throw new IllegalStateException(ErrorCode.CLIENT_NOT_INITIALIZED.getDefaultMessage());
         }
     }
     
@@ -46,7 +46,7 @@ public abstract class BaseExecutor implements Executor {
      */
     protected void validateNodeClient() {
         if (nodeClient == null) {
-            throw new IllegalStateException(Constant.ERROR_NODECLIENT_NOT_INITIALIZED);
+            throw new IllegalStateException(ErrorCode.NODECLIENT_NOT_INITIALIZED.getDefaultMessage());
         }
     }
 } 

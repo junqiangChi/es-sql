@@ -911,7 +911,7 @@
     async function callApi(sql) {
         try {
             try {
-                const apiUrl = `http://${esHost}:${esPort}/web_sql_query`;
+                const apiUrl = `http://${esHost}:${esPort}/web_sql_exec`;
                 const response = await fetch(apiUrl, {
                     method: 'POST',
                     headers: {
@@ -1205,6 +1205,20 @@
         const endIndex = Math.min(startIndex + pageSize, filteredData.length);
         const currentPageData = filteredData.slice(startIndex, endIndex);
 
+        // Format functions for handling nested objects
+        const formatNestedObject = (obj) => {
+            if (Array.isArray(obj)) {
+                td.textContent = JSON.stringify(cell);
+            } else if (obj && typeof obj === 'object') {
+                return Object.fromEntries(
+                    Object.entries(obj).map(([key, value]) =>
+                        [key, formatNestedObject(value)]
+                    )
+                );
+            }
+            return obj;
+        };
+
         // Generate table content
         currentPageData.forEach((row, rowIndex) => {
             const tr = document.createElement('tr');
@@ -1215,21 +1229,26 @@
                 const td = document.createElement('td');
                 td.className = 'px-6 py-4 whitespace-nowrap text-sm text-gray-500 border-b border-gray-200';
 
-                // Apply different styles based on data type
-                if (typeof cell === 'number' || (typeof cell === 'string' && !isNaN(parseFloat(cell)))) {
-                    td.classList.add('number-cell');
-                } else if (typeof cell === 'boolean') {
-                    td.classList.add('text-center');
+                // 处理不同类型的单元格值
+                if (Array.isArray(cell)) {
+                    td.textContent = JSON.stringify(cell);
+                } else if (typeof cell === 'object' && cell !== null) {
+                    td.textContent = JSON.stringify(cell);
                 } else {
-                    td.classList.add('text-left');
-                }
+                    if (typeof cell === 'number' || (typeof cell === 'string' && !isNaN(parseFloat(cell)))) {
+                        td.classList.add('number-cell');
+                    } else if (typeof cell === 'boolean') {
+                        td.classList.add('text-center');
+                    } else {
+                        td.classList.add('text-left');
+                    }
 
-                // Special handling for status type data
-                if (document.getElementById('tableHeader').children[cellIndex].textContent.toLowerCase() === 'status') {
-                    const statusClass = getStatusClass(cell);
-                    td.innerHTML = `<span class="px-2 py-1 rounded-full text-xs font-medium ${statusClass}">${cell}</span>`;
-                } else {
-                    td.textContent = cell;
+                    if (document.getElementById('tableHeader').children[cellIndex].textContent.toLowerCase() === 'status') {
+                        const statusClass = getStatusClass(cell);
+                        td.innerHTML = `<span class="px-2 py-1 rounded-full text-xs font-medium ${statusClass}">${cell}</span>`;
+                    } else {
+                        td.textContent = cell;
+                    }
                 }
 
                 tr.appendChild(td);

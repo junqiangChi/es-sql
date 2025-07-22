@@ -3,6 +3,7 @@ package com.cjq.handler;
 import com.cjq.common.FieldFunction;
 import com.cjq.jdbc.HandlerResult;
 import com.cjq.plan.logical.Field;
+import com.cjq.plan.logical.FunctionField;
 import com.cjq.plan.logical.Query;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.search.SearchResponse;
@@ -11,6 +12,7 @@ import org.elasticsearch.search.aggregations.bucket.terms.Terms;
 import org.elasticsearch.search.aggregations.metrics.*;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import static com.cjq.common.Constant.GROUP_BY_PREFIX;
@@ -31,11 +33,20 @@ public class AggQueryHandler extends DefaultQueryHandler {
             Terms rootTerms = searchResponse.getAggregations().get(GROUP_BY_PREFIX + groupByFields.get(0).getFieldName());
             HashMap<String, List<Object>> groupValues = new LinkedHashMap<>();
             handlerTermsBuckets(rootTerms, groupByFields, 0, query, groupValues);
-            List<String> header = query.getSelect().getFields().stream().map(field -> field.isFunction() ? field.getAlias() != null ? field.getAlias() : field.getFuncName() + "(" + field.getFieldName() + ")" : field.getFieldName()).collect(Collectors.toList());
+            AtomicInteger fieldPos = new AtomicInteger(1);
+            List<String> header = query.getSelect().getFields().stream()
+                    .map(f -> {
+                        if (f instanceof FunctionField) {
+                            return f.getAlias() != null ? f.getAlias() : "_c" + (fieldPos.getAndIncrement());
+                        } else {
+                            return f.getFieldName();
+                        }
+                    }).collect(Collectors.toList());
             List<List<Object>> lines = new ArrayList<>();
             if (!groupValues.isEmpty()) {
                 lines = convertMapToList(groupValues);
             }
+            setConstantFields(fields, header, lines);
             return new HandlerResult(header, lines);
         } else {
             List<String> header = new ArrayList<>();
@@ -56,9 +67,13 @@ public class AggQueryHandler extends DefaultQueryHandler {
                 handlerTermsBuckets(nextTerms, groupByFields, level + 1, query, groupValues);
             } else {
                 // Last level grouping
-                List<Field> funcFields = query.getSelect().getFields().stream().filter(Field::isFunction).collect(Collectors.toList());
-                for (Field funcField : funcFields) {
-                    String funcFieldName = funcField.getAlias() != null ? funcField.getAlias() : funcField.getFuncName() + "(" + funcField.getFieldName() + ")";
+                List<FunctionField> funcFields = query.getSelect().getFields().stream()
+                        .filter(f -> f instanceof FunctionField)
+                        .map(f -> (FunctionField) f)
+                        .collect(Collectors.toList());
+                AtomicInteger fieldPos = new AtomicInteger(1);
+                for (FunctionField funcField : funcFields) {
+                    String funcFieldName = funcField.getAlias() != null ? funcField.getAlias() :  "_c" + (fieldPos.getAndIncrement());
                     switch (funcField.getFuncName()) {
                         case COUNT:
                             Cardinality countAgg = bucket.getAggregations().get(funcFieldName);
@@ -90,9 +105,9 @@ public class AggQueryHandler extends DefaultQueryHandler {
         aggregations.forEach(a -> header.add(a.getName()));
         ArrayList<Object> line = new ArrayList<>();
         for (Field field : fields) {
-            FieldFunction funcName = field.getFuncName();
-            String funcFieldName = field.getAlias() != null ? field.getAlias() : field.getFuncName() + "(" + field.getFieldName() + ")";
-
+            FunctionField functionField = (FunctionField) field;
+            FieldFunction funcName = functionField.getFuncName();
+            String funcFieldName = functionField.getAlias() != null ? functionField.getAlias() : functionField.getFuncName() + "(" + field.getFieldName() + ")";
             switch (funcName) {
                 case COUNT:
                     Cardinality countAgg = aggregations.get(funcFieldName);

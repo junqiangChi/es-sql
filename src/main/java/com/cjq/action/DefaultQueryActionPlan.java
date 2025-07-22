@@ -2,6 +2,7 @@ package com.cjq.action;
 
 import com.cjq.common.Constant;
 import com.cjq.common.WhereOpr;
+import com.cjq.exception.ErrorCode;
 import com.cjq.exception.EsSqlParseException;
 import com.cjq.plan.logical.*;
 import org.elasticsearch.action.ActionRequest;
@@ -17,9 +18,11 @@ import org.elasticsearch.search.sort.SortOrder;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 public class DefaultQueryActionPlan implements ActionPlan {
-    
+
     protected final Query query;
     protected final SearchRequest searchRequest = new SearchRequest();
     protected final SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
@@ -37,12 +40,16 @@ public class DefaultQueryActionPlan implements ActionPlan {
     private void checkQuerySql() {
         List<Field> fields = query.getSelect().getFields();
         HashSet<String> fieldSet = new HashSet<>();
-        
+
         for (Field field : fields) {
             String fieldName = field.getAlias() != null ? field.getAlias() : field.getFieldName();
-            if (!fieldSet.add(fieldName)) {
-                throw new EsSqlParseException(Constant.ERROR_DUPLICATE_FIELD + fieldName);
+            if (fieldSet.contains(fieldName)) {
+                throw new EsSqlParseException(ErrorCode.DUPLICATE_FIELD + fieldName);
             }
+            if (field instanceof FunctionField && ((FunctionField) field).getFuncName().isAggFunction() && !field.isNested()) {
+                throw new EsSqlParseException(ErrorCode.UNSUPPORTED_NESTED_FUNCTION, fieldName);
+            }
+            fieldSet.add(fieldName);
         }
     }
 
@@ -70,18 +77,41 @@ public class DefaultQueryActionPlan implements ActionPlan {
     }
 
     protected void setSelect(Select select) {
-        List<Field> fields = select.getFields();
-        
-        if (fields.size() == 1 && Constant.WILDCARD_ALL.equals(fields.get(0).getFieldName())) {
+        List<Field> allFields = select.getFields();
+
+        if (allFields.size() == 1 && Constant.STAR.equals(allFields.get(0).getFieldName())) {
             searchSourceBuilder.fetchSource(new FetchSourceContext(true, null, null));
             return;
         }
-        
-        String[] fieldsToFetch = fields.stream()
-                .filter(field -> !field.isConstant())
-                .map(Field::getFieldName)
-                .toArray(String[]::new);
-                
+
+        List<Field> fields = allFields.stream().filter(f -> !(f instanceof ConstantField)).collect(Collectors.toList());
+        List<String> addFields = new ArrayList<>();
+        fields.forEach(field -> {
+            if (field instanceof FunctionField.CaseWhenThenFunctionField) {
+                FunctionField.CaseWhenThenFunctionField caseWhenThenFunctionField = (FunctionField.CaseWhenThenFunctionField) field;
+                List<Where> wheres = caseWhenThenFunctionField.getWheres();
+                for (Where where : wheres) {
+                    Field conditionField = where.getCondition().getField();
+                    addFields.add(conditionField.getFieldName());
+                }
+            } else if (field instanceof FunctionField.MultipleFieldValueFunctionField) {
+                FunctionField.MultipleFieldValueFunctionField multipleFieldValueFunctionField = (FunctionField.MultipleFieldValueFunctionField) field;
+                multipleFieldValueFunctionField.getMultipleLogicalPlan().stream().filter(f -> f instanceof Field)
+                        .map(f -> ((Field) f).getFieldName())
+                        .forEach(addFields::add);
+            } else if (field instanceof FunctionField.MultipleValueFunctionField) {
+                FunctionField.MultipleValueFunctionField multipleValueFunctionField = (FunctionField.MultipleValueFunctionField) field;
+                if (multipleValueFunctionField.getLogicalPlan() instanceof Field) {
+                    addFields.add(((Field) multipleValueFunctionField.getLogicalPlan()).getFieldName());
+                }
+            } else {
+                addFields.add(field.getFieldName());
+            }
+        });
+
+        List<String> fieldNames = addFields.stream().filter(Objects::nonNull).distinct().collect(Collectors.toList());
+        String[] fieldsToFetch = fieldNames.toArray(new String[0]);
+
         if (fieldsToFetch.length > 0) {
             searchSourceBuilder.fetchSource(new FetchSourceContext(true, fieldsToFetch, null));
         }
@@ -106,30 +136,30 @@ public class DefaultQueryActionPlan implements ActionPlan {
         if (where == null) {
             return;
         }
-        
+
         BoolQueryBuilder boolQueryBuilder = QueryBuilders.boolQuery();
         Where currentWhere = where;
-        
+
         do {
             Condition condition = currentWhere.getCondition();
             QueryBuilder subQueryBuilder = buildCondition(condition);
-            
+
             if (currentWhere.getOpr() == WhereOpr.OR) {
                 boolQueryBuilder.should(subQueryBuilder);
             } else {
                 boolQueryBuilder.must(subQueryBuilder);
             }
-            
+
             currentWhere = currentWhere.getNextWhere();
         } while (currentWhere != null);
-        
+
         searchSourceBuilder.query(boolQueryBuilder);
     }
 
     protected void setOrderBy(OrderBy orderBy) {
         orderBy.getSorts().stream()
                 .filter(sort -> sort != null)
-                .forEach(sort -> searchSourceBuilder.sort(sort.field, 
+                .forEach(sort -> searchSourceBuilder.sort(sort.field,
                         SortOrder.valueOf(sort.getOrderType().toString())));
     }
 
@@ -137,52 +167,56 @@ public class DefaultQueryActionPlan implements ActionPlan {
      * Build condition query
      */
     public QueryBuilder buildCondition(Condition condition) {
-        String field = condition.getField();
+        Field field = condition.getField();
+        if (field instanceof FunctionField) {
+            throw new EsSqlParseException(ErrorCode.UNSUPPORTED_FUNCTION, field.toString());
+        }
+        String fieldName = field.getFieldName();
         Object value = condition.getValue().getText();
 
         switch (condition.getOpera()) {
             case GT:
-                return QueryBuilders.rangeQuery(field).gt(value);
+                return QueryBuilders.rangeQuery(fieldName).gt(value);
             case LT:
-                return QueryBuilders.rangeQuery(field).lt(value);
+                return QueryBuilders.rangeQuery(fieldName).lt(value);
             case GTE:
-                return QueryBuilders.rangeQuery(field).gte(value);
+                return QueryBuilders.rangeQuery(fieldName).gte(value);
             case LTE:
-                return QueryBuilders.rangeQuery(field).lte(value);
+                return QueryBuilders.rangeQuery(fieldName).lte(value);
             case EQ:
             case MATCH_PHRASE:
-                return QueryBuilders.matchPhraseQuery(field, value);
+                return QueryBuilders.matchPhraseQuery(fieldName, value);
             case MATCH:
-                return QueryBuilders.matchQuery(field, value).operator(Operator.AND);
+                return QueryBuilders.matchQuery(fieldName, value).operator(Operator.AND);
             case TERM:
-                return QueryBuilders.termQuery(field, value);
+                return QueryBuilders.termQuery(fieldName, value);
             case NIN:
-                return QueryBuilders.boolQuery().mustNot(QueryBuilders.termsQuery(field, getValues(condition)));
+                return QueryBuilders.boolQuery().mustNot(QueryBuilders.termsQuery(fieldName, getValues(condition)));
             case IN:
-                return QueryBuilders.termsQuery(field, getValues(condition));
+                return QueryBuilders.termsQuery(fieldName, getValues(condition));
             case NBETWEEN:
                 return QueryBuilders.boolQuery()
-                        .mustNot(QueryBuilders.rangeQuery(field)
+                        .mustNot(QueryBuilders.rangeQuery(fieldName)
                                 .gte(value)
                                 .lte(((Value) condition.getValue().getPlan()).getText()));
             case BETWEEN:
-                return QueryBuilders.rangeQuery(field)
+                return QueryBuilders.rangeQuery(fieldName)
                         .gte(value)
                         .lte(((Value) condition.getValue().getPlan()).getText());
             case NLIKE:
-                return QueryBuilders.boolQuery().mustNot(QueryBuilders.wildcardQuery(field,
+                return QueryBuilders.boolQuery().mustNot(QueryBuilders.wildcardQuery(fieldName,
                         value.toString().replace(Constant.PERCENT_SYMBOL, Constant.WILDCARD_SYMBOL)));
             case LIKE:
-                return QueryBuilders.wildcardQuery(field,
+                return QueryBuilders.wildcardQuery(fieldName,
                         value.toString().replace(Constant.PERCENT_SYMBOL, Constant.WILDCARD_SYMBOL));
             case NREGEXP:
-                return QueryBuilders.boolQuery().mustNot(QueryBuilders.regexpQuery(field, value.toString()));
+                return QueryBuilders.boolQuery().mustNot(QueryBuilders.regexpQuery(fieldName, value.toString()));
             case REGEXP:
-                return QueryBuilders.regexpQuery(field, value.toString());
+                return QueryBuilders.regexpQuery(fieldName, value.toString());
             case IS:
-                return QueryBuilders.boolQuery().mustNot(QueryBuilders.existsQuery(field));
+                return QueryBuilders.boolQuery().mustNot(QueryBuilders.existsQuery(fieldName));
             default:
-                throw new EsSqlParseException(Constant.ERROR_UNKNOWN_WHERE_TYPE + condition.getOpera());
+                throw new EsSqlParseException(ErrorCode.UNKNOWN_WHERE_TYPE, String.valueOf(condition.getOpera()));
         }
     }
 

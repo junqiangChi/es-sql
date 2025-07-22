@@ -4,11 +4,11 @@ import com.cjq.common.OperatorSymbol;
 import com.cjq.exception.EsSqlParseException;
 
 public class Condition {
-    private String field;
+    private Field field;
     private OperatorSymbol opera;
     private Value value;
 
-    public Condition(String field, String operaStr, Value value) {
+    public Condition(Field field, String operaStr, Value value) {
         this.field = field;
         this.value = value;
         switch (operaStr.toUpperCase()) {
@@ -108,11 +108,11 @@ public class Condition {
                 '}';
     }
 
-    public String getField() {
+    public Field getField() {
         return field;
     }
 
-    public void setField(String field) {
+    public void setField(Field field) {
         this.field = field;
     }
 

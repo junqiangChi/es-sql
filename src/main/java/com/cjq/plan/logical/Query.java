@@ -11,31 +11,43 @@ import java.util.stream.Collectors;
  * Supports both simple queries and aggregate queries with grouping
  */
 public class Query extends LogicalPlan {
-    
-    /** The SELECT clause containing the fields to retrieve */
+
+    /**
+     * The SELECT clause containing the fields to retrieve
+     */
     private Select select;
-    
-    /** The FROM clause specifying the data source */
+
+    /**
+     * The FROM clause specifying the data source
+     */
     private From from;
-    
-    /** The WHERE clause containing filtering conditions */
+
+    /**
+     * The WHERE clause containing filtering conditions
+     */
     private Where where;
-    
-    /** Subquery if this query contains a nested query */
+
+    /**
+     * Subquery if this query contains a nested query
+     */
     private Query subQuery;
-    
-    /** The GROUP BY clause for aggregate queries */
+
+    /**
+     * The GROUP BY clause for aggregate queries
+     */
     private GroupBy groupBy;
-    
-    /** Flag indicating if this is an aggregate query */
+
+    /**
+     * Flag indicating if this is an aggregate query
+     */
     private boolean isAgg;
 
     /**
      * Constructs a simple query without grouping
-     * 
+     *
      * @param select the SELECT clause
-     * @param from the FROM clause
-     * @param where the WHERE clause
+     * @param from   the FROM clause
+     * @param where  the WHERE clause
      */
     public Query(Select select, From from, Where where) {
         this.select = select;
@@ -46,10 +58,10 @@ public class Query extends LogicalPlan {
     /**
      * Constructs a query that may include grouping
      * Automatically determines if this is an aggregate query based on grouping or function fields
-     * 
-     * @param select the SELECT clause
-     * @param from the FROM clause
-     * @param where the WHERE clause
+     *
+     * @param select  the SELECT clause
+     * @param from    the FROM clause
+     * @param where   the WHERE clause
      * @param groupBy the GROUP BY clause
      */
     public Query(Select select, From from, Where where, GroupBy groupBy) {
@@ -57,9 +69,10 @@ public class Query extends LogicalPlan {
         this.from = from;
         this.where = where;
         this.groupBy = groupBy;
-        
+
         // Determine if this is an aggregate query
-        long funcFieldCount = select.getFields().stream().filter(f -> f.getFuncName() != null).count();
+        long funcFieldCount = select.getFields().stream().filter(f -> f instanceof FunctionField &&
+                ((FunctionField) f).getFuncName().isAggFunction()).count();
         if (groupBy != null || funcFieldCount > 0) {
             isAgg = true;
         }
@@ -67,7 +80,7 @@ public class Query extends LogicalPlan {
 
     /**
      * Gets the SELECT clause
-     * 
+     *
      * @return the SELECT clause
      */
     public Select getSelect() {
@@ -76,7 +89,7 @@ public class Query extends LogicalPlan {
 
     /**
      * Sets the SELECT clause
-     * 
+     *
      * @param select the SELECT clause to set
      */
     public void setSelect(Select select) {
@@ -85,7 +98,7 @@ public class Query extends LogicalPlan {
 
     /**
      * Gets the FROM clause
-     * 
+     *
      * @return the FROM clause
      */
     public From getFrom() {
@@ -94,7 +107,7 @@ public class Query extends LogicalPlan {
 
     /**
      * Sets the FROM clause
-     * 
+     *
      * @param from the FROM clause to set
      */
     public void setFrom(From from) {
@@ -103,7 +116,7 @@ public class Query extends LogicalPlan {
 
     /**
      * Gets the WHERE clause
-     * 
+     *
      * @return the WHERE clause
      */
     public Where getWhere() {
@@ -112,7 +125,7 @@ public class Query extends LogicalPlan {
 
     /**
      * Sets the WHERE clause
-     * 
+     *
      * @param where the WHERE clause to set
      */
     public void setWhere(Where where) {
@@ -121,7 +134,7 @@ public class Query extends LogicalPlan {
 
     /**
      * Gets the subquery if this query contains a nested query
-     * 
+     *
      * @return the subquery, or null if there is no subquery
      */
     public Query getSubQuery() {
@@ -130,7 +143,7 @@ public class Query extends LogicalPlan {
 
     /**
      * Sets the subquery
-     * 
+     *
      * @param subQuery the subquery to set
      */
     public void setSubQuery(Query subQuery) {
@@ -139,7 +152,7 @@ public class Query extends LogicalPlan {
 
     /**
      * Gets the GROUP BY clause
-     * 
+     *
      * @return the GROUP BY clause, or null if there is no grouping
      */
     public GroupBy getGroupBy() {
@@ -148,7 +161,7 @@ public class Query extends LogicalPlan {
 
     /**
      * Sets the GROUP BY clause
-     * 
+     *
      * @param groupBy the GROUP BY clause to set
      */
     public void setGroupBy(GroupBy groupBy) {
@@ -157,7 +170,7 @@ public class Query extends LogicalPlan {
 
     /**
      * Checks if this is an aggregate query
-     * 
+     *
      * @return true if this is an aggregate query, false otherwise
      */
     public boolean isAgg() {
@@ -166,7 +179,7 @@ public class Query extends LogicalPlan {
 
     /**
      * Sets the aggregate flag
-     * 
+     *
      * @param agg true to mark as aggregate query, false otherwise
      */
     public void setAgg(boolean agg) {
@@ -175,7 +188,7 @@ public class Query extends LogicalPlan {
 
     /**
      * Returns a string representation of this query
-     * 
+     *
      * @return string representation including all query components
      */
     @Override

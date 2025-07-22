@@ -1,7 +1,7 @@
 package com.cjq.action;
 
-import com.cjq.common.Constant;
 import com.cjq.domain.Client;
+import com.cjq.exception.ErrorCode;
 import com.cjq.exception.EsSqlParseException;
 import com.cjq.plan.logical.*;
 
@@ -54,7 +54,7 @@ public class ActionPlanFactory {
             return creator.apply(client, plan);
         }
         
-        throw new EsSqlParseException(Constant.ERROR_UNSUPPORTED_PLAN_TYPE + plan.getClass().getName());
+        throw new EsSqlParseException(ErrorCode.UNSUPPORTED_PLAN_TYPE + plan.getClass().getName());
     }
 
     // Enum to identify LogicalPlan types, providing better type safety

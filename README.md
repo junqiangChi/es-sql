@@ -9,9 +9,9 @@
 
 ## Introduction
 
-Es SQL uses SQL syntax to operate on [`Elasticsearch`](https://github.com/elastic/elasticsearch)
-The project used [`Antlr4`](https://github.com/antlr/antlr4) for syntax parsing
-Component, database connection pool usage [`Druid`](https://github.com/alibaba/druid).
+Es SQL is a project that uses SQL syntax to operate [`Elasticsearch`](https://github.com/elastic/elasticsearch),
+with [`Antlr4`](https://github.com/antlr/antlr4) component used for syntax parsing and [
+`Druid`](https://github.com/alibaba/druid) for database connection pooling
 
 ## Builds
 
@@ -49,7 +49,7 @@ POST _es_sql
 }
 ```
 
-### Plugin Query Page
+### Plugin Execute Page
 
 After installing the plugin and restarting Elasticsearch, you can proceed to the following page to perform SQL queries
 
@@ -83,6 +83,29 @@ Configuration parameters that can be set when using jdbc connection
         - _index : INDEX_NAME
         - _type : INDEX_TYPE
         - _score : DOC_SCORE
+    - ✅ NESTED FIELD
+        - Nested fields do not support aggregation functions
+    - ✅ FUNCTION
+        - ✅LENGTH()
+        - ✅LOWER()
+        - ✅UPPER()
+        - ✅SUBSTRING() | SUBSTR()
+        - ✅TRIM()
+        - ✅CONCAT() | CONCAT_WS()
+        - ✅REPLACE()
+        - ✅ABS()
+        - ✅CEIL()
+        - ✅FLOOR()
+        - ✅ROUND()
+        - ✅MOD()
+        - ✅POW()
+        - ✅SQRT()
+        - ✅SQRT()
+        - ✅RAND()
+        - ✅CASE WHEN THEN ELSE END
+        - ✅IF()
+        - ✅IFNULL()
+        - ✅COALESCE()
 - ✅ WHERE
     - ✅ =
     - ✅ >
