@@ -137,7 +137,7 @@ http://localhost:9200/es_sql_plugin
     - ✅ SHOW TABLES [FROM | IN] TABLE_NAME
     - ✅ SHOW TABLES LIKE 'PATTERN'
 - ✅ INSERT INTO
-    - ✅ INSERT INTO [_id, F1, F2] TABLE_NAME VALUES ('V1','V2','V3'), ('V4','V5','V6')
+    - ✅ INSERT INTO [TABLE] TABLE_NAME [(_id, F1, F2)] VALUES ('V1','V2','V3'), ('V4','V5','V6')
         - 如果字段名中包含`_id`,则认为对应值为`文档ID`
 - ✅ UPDATE
     - ✅ UPDATE TABLE_NAME SET F1 = 1, F2 = '2' BY 'doc_id'
