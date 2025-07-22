@@ -79,6 +79,7 @@ http://localhost:9200/es_sql_plugin
         - _type : 索引类型
         - _score : 文档分数
     - ✅ 嵌套字段
+        - select f1.f2 from my_index
         - 嵌套字段不支持聚合函数
     - ✅ 函数
         - ✅LENGTH()
@@ -94,7 +95,6 @@ http://localhost:9200/es_sql_plugin
         - ✅ROUND()
         - ✅MOD()
         - ✅POW()
-        - ✅SQRT()
         - ✅SQRT()
         - ✅RAND()
         - ✅CASE WHEN THEN ELSE END

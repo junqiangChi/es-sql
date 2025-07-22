@@ -84,6 +84,7 @@ Configuration parameters that can be set when using jdbc connection
         - _type : INDEX_TYPE
         - _score : DOC_SCORE
     - ✅ NESTED FIELD
+        - select f1.f2 from my_index
         - Nested fields do not support aggregation functions
     - ✅ FUNCTION
         - ✅LENGTH()
@@ -99,7 +100,6 @@ Configuration parameters that can be set when using jdbc connection
         - ✅ROUND()
         - ✅MOD()
         - ✅POW()
-        - ✅SQRT()
         - ✅SQRT()
         - ✅RAND()
         - ✅CASE WHEN THEN ELSE END
